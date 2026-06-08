@@ -154,6 +154,8 @@ export default function App() {
             addSeason={state.addSeason}
             activeSeasonId={state.activeSeasonId}
             toggleSeasonActive={state.toggleSeasonActive}
+            adminPassword={state.adminPassword}
+            setAdminPassword={state.setAdminPassword}
           />
         );
       default:
@@ -185,6 +187,7 @@ export default function App() {
         seasons={state.seasons}
         activeSeasonId={state.activeSeasonId}
         setActiveSeasonId={state.setActiveSeasonId}
+        adminPassword={state.adminPassword}
       />
 
       {/* 2. Main Page Content frame with animated mount fade-ins */}

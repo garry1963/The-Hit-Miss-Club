@@ -43,6 +43,11 @@ export function useSocietyState() {
   };
 
   // State definitions
+  const [adminPassword, setAdminPassword] = useState<string>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'adminPassword');
+    return saved || 'admin';
+  });
+
   const [members, setMembers] = useState<Member[]>(() => getStored('members', INITIAL_MEMBERS));
   const [seasons, setSeasons] = useState<Season[]>(() => getStored('seasons', INITIAL_SEASONS));
   const [divisions, setDivisions] = useState<Division[]>(() => getStored('divisions', [
@@ -57,6 +62,10 @@ export function useSocietyState() {
   const [siteContent, setSiteContent] = useState<Record<string, string>>(() => getStored('siteContent', DEFAULT_SITE_CONTENT));
 
   // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_PREFIX + 'adminPassword', adminPassword);
+  }, [adminPassword]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_PREFIX + 'isAdmin', JSON.stringify(isAdmin));
   }, [isAdmin]);
@@ -124,6 +133,7 @@ export function useSocietyState() {
       setGallery(INITIAL_GALLERY);
       setSiteContent(DEFAULT_SITE_CONTENT);
       setActiveSeasonId('season-2026');
+      setAdminPassword('admin');
       setIsAdmin(false);
     }
   };
@@ -388,6 +398,8 @@ export function useSocietyState() {
     gallery,
     standings,
     resetDatabase,
+    adminPassword,
+    setAdminPassword,
     // Add operations
     addMember,
     updateMember,

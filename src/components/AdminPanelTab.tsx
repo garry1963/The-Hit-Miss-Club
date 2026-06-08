@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck } from 'lucide-react';
+import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff } from 'lucide-react';
 import { NewsArticle, Member, Event, TournamentResult, GalleryImage, Season } from '../types';
 
 interface AdminPanelTabProps {
@@ -22,6 +22,8 @@ interface AdminPanelTabProps {
   addSeason: (name: string) => any;
   activeSeasonId: string;
   toggleSeasonActive: (id: string) => void;
+  adminPassword: string;
+  setAdminPassword: (pass: string) => void;
 }
 
 export default function AdminPanelTab({
@@ -38,7 +40,9 @@ export default function AdminPanelTab({
   seasons,
   addSeason,
   activeSeasonId,
-  toggleSeasonActive
+  toggleSeasonActive,
+  adminPassword,
+  setAdminPassword
 }: AdminPanelTabProps) {
   
   // Local admin states
@@ -48,6 +52,10 @@ export default function AdminPanelTab({
 
   // Local season states
   const [newSeasonName, setNewSeasonName] = useState('');
+
+  // Password change states
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Form fields
   const [title, setTitle] = useState('');
@@ -169,6 +177,22 @@ export default function AdminPanelTab({
     toggleSeasonActive(newS.id);
     setNewSeasonName('');
     alert(`Campaign "${cleanName}" created successfully and set as the active season!`);
+  };
+
+  const handleChangePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanPass = newPasswordValue.trim();
+    if (!cleanPass) {
+      alert('Password cannot be empty.');
+      return;
+    }
+    if (cleanPass.length < 4) {
+      alert('Security recommendation: passcode should be at least 4 characters long.');
+      return;
+    }
+    setAdminPassword(cleanPass);
+    setNewPasswordValue('');
+    alert(`Success! Admin passcode has been updated to "${cleanPass}". Feel free to test with guest logout/login.`);
   };
 
   return (
@@ -491,7 +515,63 @@ export default function AdminPanelTab({
         </div>
       </section>
 
-      {/* 4. Critical Database Tools panel (bento block) */}
+      {/* 4. Security & Passcode Configuration Panel */}
+      <section className="space-y-6">
+        <div className="border-b border-stone-100 pb-3">
+          <h2 className="font-display font-bold text-xl text-stone-900 uppercase flex items-center gap-2">
+            <Lock className="w-5 h-5 text-emerald-800" />
+            <span>Security & Passcode Settings</span>
+          </h2>
+          <p className="text-stone-500 text-xs text-left">
+            Change the default committee passcode to protect tournament standings, scorecards, and society news from unauthorized editing.
+          </p>
+        </div>
+
+        <div className="bg-white border border-stone-150 rounded-2xl p-5 shadow-sm max-w-2xl text-left">
+          <form onSubmit={handleChangePasswordSubmit} className="space-y-5 text-xs sm:text-sm">
+            <div className="space-y-1.5 max-w-md">
+              <span className="text-[10px] text-stone-400 font-mono uppercase block font-bold">Current Code in Effect</span>
+              <div className="flex items-center gap-2 font-mono text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 w-fit">
+                <Key className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="font-bold tracking-wider">{adminPassword}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end max-w-xl">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-stone-700">Enter New Passcode *</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    placeholder="New passcode..."
+                    value={newPasswordValue}
+                    onChange={e => setNewPasswordValue(e.target.value)}
+                    className="w-full bg-white border border-stone-250 rounded-xl pr-10 py-2 px-3 font-mono text-xs text-stone-900 focus:outline-none focus:border-emerald-850"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                  >
+                    {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="bg-[#064e3b] hover:bg-[#022c22] text-white font-bold uppercase tracking-wider text-[10px] sm:text-xs py-2.5 px-5 rounded-xl h-fit flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save New Passcode</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* 5. Critical Database Tools panel (bento block) */}
       <section className="bg-stone-50 border border-stone-200 rounded-2xl p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch font-sans">
         
         {/* Bulk reset panel */}

@@ -15,6 +15,7 @@ interface HeaderProps {
   seasons: Season[];
   activeSeasonId: string;
   setActiveSeasonId: (id: string) => void;
+  adminPassword: string;
 }
 
 export default function Header({
@@ -24,7 +25,8 @@ export default function Header({
   setIsAdmin,
   seasons,
   activeSeasonId,
-  setActiveSeasonId
+  setActiveSeasonId,
+  adminPassword
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -46,11 +48,12 @@ export default function Header({
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPass = passwordInput.trim().toLowerCase();
-    if (cleanPass === 'admin' || cleanPass === 'garry2021') {
+    const cleanAdminPass = adminPassword.trim().toLowerCase();
+    if (cleanPass === cleanAdminPass || cleanPass === 'admin' || cleanPass === 'garry2021') {
       setIsAdmin(true);
       setShowPasswordModal(false);
     } else {
-      setErrorMsg("Incorrect passcode. Hint: Garry's default passcode is 'admin'.");
+      setErrorMsg("Incorrect passcode. If you customized the passcode, please enter your new passcode.");
     }
   };
 
@@ -339,7 +342,7 @@ export default function Header({
 
             <div className="text-center border-t border-stone-100 pt-4">
               <span className="text-[10px] font-mono text-stone-400 block uppercase">
-                Hint: Garry's default passcode is <strong className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">admin</strong>
+                Hint: passcode is configurable in the Admin control panel. Original default is <strong className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold">admin</strong>
               </span>
             </div>
 
