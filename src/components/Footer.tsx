@@ -4,14 +4,15 @@
  */
 
 import React from 'react';
-import { Mail, Phone, MapPin, Youtube, Facebook, Instagram, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, MapPin, Youtube, Facebook, MessageSquare, ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   setCurrentTab: (tab: string) => void;
   isAdmin: boolean;
+  siteContent?: Record<string, string>;
 }
 
-export default function Footer({ setCurrentTab, isAdmin }: FooterProps) {
+export default function Footer({ setCurrentTab, isAdmin, siteContent }: FooterProps) {
   const currentYear = new Date().getFullYear();
 
   return (
@@ -90,17 +91,17 @@ export default function Footer({ setCurrentTab, isAdmin }: FooterProps) {
             <ul className="space-y-3 text-sm text-stone-400">
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#fbbf24]" />
-                <a href="mailto:garrydavies1963@gmail.com" className="hover:text-white transition-colors">
-                  garrydavies1963@gmail.com
+                <a href={`mailto:${siteContent?.contact_hq_email_val || "garrydavies1963@gmail.com"}`} className="hover:text-white transition-colors">
+                  {siteContent?.contact_hq_email_val || "garrydavies1963@gmail.com"}
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#fbbf24]" />
-                <span>+353 (0) 86 123 4567</span>
+                <span>{siteContent?.contact_hq_phone_val || "+353 (0) 86 123 4567"}</span>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#fbbf24] mt-0.5" />
-                <span>Headquartered in Dublin / Kerry. Playing links and parklands countrywide.</span>
+                <span>{siteContent?.contact_hq_fields_val || "County Dublin & County Kerry links, Ireland, EU"}</span>
               </li>
             </ul>
           </div>
@@ -112,13 +113,13 @@ export default function Footer({ setCurrentTab, isAdmin }: FooterProps) {
             </h3>
             
             <div className="flex gap-3">
-              <a href="https://facebook.com/golf" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-[#fbbf24] hover:text-[#fbbf24] transition-all">
+              <a href={siteContent?.social_facebook || "https://facebook.com/golf"} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-[#fbbf24] hover:text-[#fbbf24] transition-all">
                 <Facebook className="w-4 h-4" />
               </a>
-              <a href="https://instagram.com/golf" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-[#fbbf24] hover:text-[#fbbf24] transition-all">
-                <Instagram className="w-4 h-4" />
+              <a href={siteContent?.social_discord || "https://discord.gg/golf"} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-[#fbbf24] hover:text-[#fbbf24] transition-all" title="Join our Discord Server">
+                <MessageSquare className="w-4 h-4" />
               </a>
-              <a href="https://youtube.com/golf" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-[#fbbf24] hover:text-[#fbbf24] transition-all">
+              <a href={siteContent?.social_youtube || "https://youtube.com/golf"} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-stone-900 border border-stone-800 hover:border-[#fbbf24] hover:text-[#fbbf24] transition-all">
                 <Youtube className="w-4 h-4" />
               </a>
             </div>

@@ -54,4 +54,9 @@ export const DEFAULT_SITE_CONTENT: Record<string, string> = {
 
   // League Tab
   league_rule_text: "Ties in standings points are settled dynamically by descending wins count, then highest average points output, followed by the lower initial player handicap tier.",
+
+  // Social Links
+  social_facebook: "https://facebook.com/golf",
+  social_discord: "https://discord.gg/golf",
+  social_youtube: "https://youtube.com/golf",
 };

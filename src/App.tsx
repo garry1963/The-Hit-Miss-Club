@@ -156,6 +156,10 @@ export default function App() {
             toggleSeasonActive={state.toggleSeasonActive}
             adminPassword={state.adminPassword}
             setAdminPassword={state.setAdminPassword}
+            deleteSeason={state.deleteSeason}
+            updateMember={state.updateMember}
+            siteContent={state.siteContent}
+            updateSiteContent={state.updateSiteContent}
           />
         );
       default:
@@ -210,6 +214,7 @@ export default function App() {
       <Footer 
         setCurrentTab={setCurrentTab} 
         isAdmin={state.isAdmin} 
+        siteContent={state.siteContent}
       />
 
     </div>

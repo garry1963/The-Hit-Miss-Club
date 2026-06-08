@@ -35,13 +35,6 @@ export default function AboutTab({
   const [draftCard2Body, setDraftCard2Body] = React.useState('');
   const [draftCard3Title, setDraftCard3Title] = React.useState('');
   const [draftCard3Body, setDraftCard3Body] = React.useState('');
-  const [draftDuesTitle, setDraftDuesTitle] = React.useState('');
-  const [draftDuesBody, setDraftDuesBody] = React.useState('');
-  const [draftDuesBullet1, setDraftDuesBullet1] = React.useState('');
-  const [draftDuesBullet2, setDraftDuesBullet2] = React.useState('');
-  const [draftDuesBullet3, setDraftDuesBullet3] = React.useState('');
-  const [draftSpotsHeadline, setDraftSpotsHeadline] = React.useState('');
-  const [draftSpotsSub, setDraftSpotsSub] = React.useState('');
 
   // Sync state values on database trigger load
   React.useEffect(() => {
@@ -54,13 +47,6 @@ export default function AboutTab({
       setDraftCard2Body(siteContent.about_card2_body || "Our custom trim system acts as an equalizer, modifying handicaps dynamically when society cups are won. This allows members of all backgrounds (3 to 28+) to remain in contention.");
       setDraftCard3Title(siteContent.about_card3_title || "Approved Venues");
       setDraftCard3Body(siteContent.about_card3_body || "From St. Andrews Old Course to Druids Glen, we carefully screen and reserve prestige tees, ensuring our members get the absolute finest golf course conditions available in Northern Europe.");
-      setDraftDuesTitle(siteContent.about_dues_title || "Society Dues & Requirements");
-      setDraftDuesBody(siteContent.about_dues_body || "To keep society operations running smoothly, we maintain transparent annual subscription dues. Funds are used entirely to pay for custom trophies, season medals, society insurance, and our year-end Presentation Dinner.");
-      setDraftDuesBullet1(siteContent.about_dues_bullet1 || "Annual Membership Dues: €120 per player (due by March 1st for active seasonal calculation).");
-      setDraftDuesBullet2(siteContent.about_dues_bullet2 || "Green Fees: Paid individually per event directly to the host club, usually negotiated at premium society discount rates.");
-      setDraftDuesBullet3(siteContent.about_dues_bullet3 || "Guest Access: Members are eligible to register one guest per tournament for green fees only, pending slot availability.");
-      setDraftSpotsHeadline(siteContent.about_spots_headline || "Only 4 Slots Left!");
-      setDraftSpotsSub(siteContent.about_spots_sub || "Active society membership is capped strictly at 25 individuals to ensure tee availability.");
     }
   }, [siteContent]);
 
@@ -74,13 +60,6 @@ export default function AboutTab({
     updateSiteContent('about_card2_body', draftCard2Body);
     updateSiteContent('about_card3_title', draftCard3Title);
     updateSiteContent('about_card3_body', draftCard3Body);
-    updateSiteContent('about_dues_title', draftDuesTitle);
-    updateSiteContent('about_dues_body', draftDuesBody);
-    updateSiteContent('about_dues_bullet1', draftDuesBullet1);
-    updateSiteContent('about_dues_bullet2', draftDuesBullet2);
-    updateSiteContent('about_dues_bullet3', draftDuesBullet3);
-    updateSiteContent('about_spots_headline', draftSpotsHeadline);
-    updateSiteContent('about_spots_sub', draftSpotsSub);
     setIsEditingAbout(false);
   };
 
@@ -230,53 +209,22 @@ export default function AboutTab({
         </div>
       </section>
 
-      {/* 4. Membership Dues & Policies information */}
-      <section className="bg-stone-50 border border-stone-200 rounded-2xl p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        
-        <div className="lg:col-span-8 space-y-4">
-          <h3 className="font-display font-bold text-xl text-stone-950 uppercase">
-            {siteContent?.about_dues_title || "Society Dues & Requirements"}
+      {/* 4. Join the Society call to action */}
+      <section className="bg-stone-50 border border-stone-200 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="space-y-2 max-w-2xl text-left">
+          <h3 className="font-display font-bold text-xl text-stone-900 uppercase">
+            Interested in Joining the Club?
           </h3>
           <p className="text-stone-600 text-sm leading-relaxed font-sans">
-            {siteContent?.about_dues_body || "To keep society operations running smoothly, we maintain transparent annual subscription dues. Funds are used entirely to pay for custom trophies, season medals, society insurance, and our year-end Presentation Dinner."}
+            Whether you play off standard single figures or are a recreational double-digit enthusiast, The Hit & Miss Club is dedicated to outstanding friendly camaraderie on and off the course. We are delighted to accept new membership inquiries.
           </p>
-          
-          <div className="space-y-3 text-xs sm:text-sm text-stone-655">
-            <div className="flex items-start gap-2">
-              <span className="font-bold text-[#fbbf24] shrink-0 font-sans">✔</span>
-              <span>{siteContent?.about_dues_bullet1 || "Annual Membership Dues: €120 per player (due by March 1st for active seasonal calculation)."}</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="font-bold text-[#fbbf24] shrink-0 font-sans">✔</span>
-              <span>{siteContent?.about_dues_bullet2 || "Green Fees: Paid individually per event directly to the host club, usually negotiated at premium society discount rates."}</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="font-bold text-[#fbbf24] shrink-0 font-sans">✔</span>
-              <span>{siteContent?.about_dues_bullet3 || "Guest Access: Members are eligible to register one guest per tournament for green fees only, pending slot availability."}</span>
-            </div>
-          </div>
         </div>
-
-        <div className="lg:col-span-4 bg-white p-6 rounded-xl border border-stone-200 flex flex-col justify-between shadow-sm min-h-48 text-center sm:text-left">
-          <div>
-            <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-250 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider">
-              2026 Spaces Remaining
-            </span>
-            <div className="text-3xl font-display font-bold text-stone-900 mt-2 leading-tight">
-              {siteContent?.about_spots_headline || "Only 4 Slots Left!"}
-            </div>
-            <p className="text-stone-500 text-xs mt-1">
-              {siteContent?.about_spots_sub || "Active society membership is capped strictly at 25 individuals to ensure tee availability."}
-            </p>
-          </div>
-          <button
-            onClick={() => setCurrentTab('contact')}
-            className="w-full text-center bg-[#064e3b] hover:bg-emerald-990 text-[#fbbf24] font-bold uppercase py-3 px-4 rounded-lg tracking-wider mt-4 shadow-sm text-xs transition"
-          >
-            Apply for Membership
-          </button>
-        </div>
-
+        <button
+          onClick={() => setCurrentTab('contact')}
+          className="bg-[#064e3b] hover:bg-emerald-900 text-[#fbbf24] font-bold uppercase py-3.5 px-6 rounded-xl tracking-wider text-xs shadow-sm transition shrink-0"
+        >
+          Submit Membership Inquiry
+        </button>
       </section>
 
       {/* Admin About Tab Editor modal */}
@@ -356,45 +304,6 @@ export default function AboutTab({
                     required rows={3} value={draftCard3Body} onChange={e => setDraftCard3Body(e.target.value)}
                     className="w-full text-[11px] p-2 border border-stone-250 rounded-md"
                   />
-                </div>
-              </div>
-
-              <div className="border-t border-stone-200 pt-4 space-y-3">
-                <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-widest">Dues & Regulations Editor</h4>
-                
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-stone-700 block text-[10px] uppercase">Dues Main Header</label>
-                  <input
-                    type="text" required value={draftDuesTitle} onChange={e => setDraftDuesTitle(e.target.value)}
-                    className="w-full bg-white border border-stone-250 py-2 px-3 rounded-lg text-sm"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-stone-700 block text-[10px] uppercase">Dues Description</label>
-                  <textarea
-                    required rows={2} value={draftDuesBody} onChange={e => setDraftDuesBody(e.target.value)}
-                    className="w-full bg-white border border-stone-250 p-2.5 rounded-lg text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-stone-750 block text-[10px] uppercase">Policy Bullet Actions</label>
-                  <input type="text" required value={draftDuesBullet1} onChange={e => setDraftDuesBullet1(e.target.value)} className="w-full text-xs p-2.5 border border-stone-250 rounded-lg" />
-                  <input type="text" required value={draftDuesBullet2} onChange={e => setDraftDuesBullet2(e.target.value)} className="w-full text-xs p-2.5 border border-stone-250 rounded-lg" />
-                  <input type="text" required value={draftDuesBullet3} onChange={e => setDraftDuesBullet3(e.target.value)} className="w-full text-xs p-2.5 border border-stone-250 rounded-lg" />
-                </div>
-              </div>
-
-              <div className="border-t border-stone-200 pt-4 space-y-2">
-                <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-widest">Membership Limit Indicators</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-stone-600 block uppercase">Spaces Status Headline</label>
-                    <input type="text" required value={draftSpotsHeadline} onChange={e => setDraftSpotsHeadline(e.target.value)} className="w-full text-xs p-2.5 border border-[#fbbf24] bg-amber-50/20 rounded-lg" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-stone-600 block uppercase">Spaces Detailed Capping Subtext</label>
-                    <input type="text" required value={draftSpotsSub} onChange={e => setDraftSpotsSub(e.target.value)} className="w-full text-xs p-2.5 border border-[#fbbf24] bg-amber-50/20 rounded-lg" />
-                  </div>
                 </div>
               </div>
 

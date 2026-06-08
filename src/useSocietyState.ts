@@ -285,6 +285,21 @@ export function useSocietyState() {
     setActiveSeasonId(id);
   };
 
+  const deleteSeason = (id: string) => {
+    if (id === activeSeasonId) {
+      alert('Cannot delete the active campaign. Please set another season as active first.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this season? This will also remove any outings/tournaments and results linked to it.')) {
+      setSeasons(prev => prev.filter(s => s.id !== id));
+      setEvents(prev => prev.filter(e => e.seasonId !== id));
+      setResults(prev => prev.filter(r => {
+        const event = events.find(e => e.id === r.eventId);
+        return event ? event.seasonId !== id : true;
+      }));
+    }
+  };
+
   // Auto-calculated Standings
   const getStandingsForSeason = (seasonId: string): StandingsRow[] => {
     const seasonEvents = events.filter(e => e.seasonId === seasonId && e.status === 'Completed');
@@ -420,6 +435,7 @@ export function useSocietyState() {
     deleteGalleryImage,
     addSeason,
     toggleSeasonActive,
+    deleteSeason,
     getStandingsForSeason,
     addDivision,
     deleteDivision

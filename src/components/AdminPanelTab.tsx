@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff } from 'lucide-react';
+import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff, Facebook, MessageSquare, Youtube, Mail, Phone, MapPin, Users, Globe } from 'lucide-react';
 import { NewsArticle, Member, Event, TournamentResult, GalleryImage, Season } from '../types';
 
 interface AdminPanelTabProps {
@@ -24,6 +24,10 @@ interface AdminPanelTabProps {
   toggleSeasonActive: (id: string) => void;
   adminPassword: string;
   setAdminPassword: (pass: string) => void;
+  deleteSeason: (id: string) => void;
+  updateMember: (updated: Member) => void;
+  siteContent: Record<string, string>;
+  updateSiteContent: (key: string, val: string) => void;
 }
 
 export default function AdminPanelTab({
@@ -42,7 +46,11 @@ export default function AdminPanelTab({
   activeSeasonId,
   toggleSeasonActive,
   adminPassword,
-  setAdminPassword
+  setAdminPassword,
+  deleteSeason,
+  updateMember,
+  siteContent,
+  updateSiteContent
 }: AdminPanelTabProps) {
   
   // Local admin states
@@ -56,6 +64,97 @@ export default function AdminPanelTab({
   // Password change states
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // Draft society contact details
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftPhone, setDraftPhone] = useState('');
+  const [draftFields, setDraftFields] = useState('');
+  
+  // Draft social URLs
+  const [draftFacebook, setDraftFacebook] = useState('');
+  const [draftDiscord, setDraftDiscord] = useState('');
+  const [draftYoutube, setDraftYoutube] = useState('');
+
+  // Draft committee officer additions
+  const [newOfficerId, setNewOfficerId] = useState('');
+  const [newOfficerTitle, setNewOfficerTitle] = useState('');
+  const [newOfficerNotes, setNewOfficerNotes] = useState('');
+
+  // Sync state values on siteContent load
+  React.useEffect(() => {
+    if (siteContent) {
+      setDraftEmail(siteContent.contact_hq_email_val || 'garrydavies1963@gmail.com');
+      setDraftPhone(siteContent.contact_hq_phone_val || '+353 (0) 86 123 4567');
+      setDraftFields(siteContent.contact_hq_fields_val || 'County Dublin & County Kerry links, Ireland, EU');
+      setDraftFacebook(siteContent.social_facebook || 'https://facebook.com/golf');
+      setDraftDiscord(siteContent.social_discord || 'https://discord.gg/golf');
+      setDraftYoutube(siteContent.social_youtube || 'https://youtube.com/golf');
+    }
+  }, [siteContent]);
+
+  // Handle Contact Save
+  const handleSaveContacts = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSiteContent('contact_hq_email_val', draftEmail);
+    updateSiteContent('contact_hq_phone_val', draftPhone);
+    updateSiteContent('contact_hq_fields_val', draftFields);
+    alert('Society contact information updated successfully!');
+  };
+
+  // Handle Socials Save
+  const handleSaveSocials = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSiteContent('social_facebook', draftFacebook);
+    updateSiteContent('social_discord', draftDiscord);
+    updateSiteContent('social_youtube', draftYoutube);
+    alert('Social media/follow platform details updated successfully!');
+  };
+
+  // Handle Promote standard member to committee officer
+  const handleAddCommitteeOfficer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOfficerId) {
+      alert('Please select a member first.');
+      return;
+    }
+    const target = members.find(m => m.id === newOfficerId);
+    if (!target) return;
+
+    updateMember({
+      ...target,
+      role: 'Committee',
+      committeeTitle: newOfficerTitle || 'Committee Officer',
+      notes: newOfficerNotes || 'No custom notes.'
+    });
+
+    setNewOfficerId('');
+    setNewOfficerTitle('');
+    setNewOfficerNotes('');
+    alert(`Successfully added ${target.name} as a Committee Officer!`);
+  };
+
+  // Handle updates to existing committee officers
+  const handleUpdateOfficerInfo = (m: Member, updatedTitle: string, updatedNotes: string) => {
+    updateMember({
+      ...m,
+      committeeTitle: updatedTitle,
+      notes: updatedNotes
+    });
+    alert(`Updated details for committee officer: ${m.name}`);
+  };
+
+  // Handle demoting officer back to regular member
+  const handleRemoveFromCommittee = (m: Member) => {
+    if (window.confirm(`Are you sure you want to remove ${m.name} from the committee board? This will change their role back to regular Member.`)) {
+      updateMember({
+        ...m,
+        role: 'Member',
+        committeeTitle: undefined,
+        notes: undefined
+      });
+      alert(`Removed ${m.name} from the committee.`);
+    }
+  };
 
   // Form fields
   const [title, setTitle] = useState('');
@@ -299,22 +398,35 @@ export default function AdminPanelTab({
                       <span className="text-[10px] font-mono text-stone-400 block">{seasonEventsCount} tournaments linked</span>
                     </div>
 
-                    {isActive ? (
-                      <span className="bg-emerald-800 text-white font-mono font-bold text-[9px] uppercase px-2.5 py-1 rounded-md shadow-sm">
-                        ✓ Active
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          toggleSeasonActive(s.id);
-                          alert(`Campaign "${s.name}" is now set as the active view!`);
-                        }}
-                        className="bg-stone-200 hover:bg-stone-300 text-stone-850 font-sans font-bold text-[9px] uppercase px-2.5 py-1 rounded-md"
-                      >
-                        Set Active
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!isActive && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSeason(s.id)}
+                          className="bg-red-50 hover:bg-red-100 text-red-650 p-1.5 rounded-lg border border-red-200 transition-colors"
+                          title="Delete season and all its records"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {isActive ? (
+                        <span className="bg-emerald-800 text-white font-mono font-bold text-[9px] uppercase px-2.5 py-1 rounded-md shadow-sm">
+                          ✓ Active
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toggleSeasonActive(s.id);
+                            alert(`Campaign "${s.name}" is now set as the active view!`);
+                          }}
+                          className="bg-stone-200 hover:bg-stone-300 text-stone-850 font-sans font-bold text-[9px] uppercase px-2.5 py-1 rounded-md"
+                        >
+                          Set Active
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -515,6 +627,238 @@ export default function AdminPanelTab({
         </div>
       </section>
 
+      {/* Society Profile, Contacts & Committee Control Panel */}
+      <section className="space-y-8 border-t border-stone-200 pt-8">
+        <div className="border-b border-stone-100 pb-3 text-left">
+          <h2 className="font-display font-bold text-xl text-stone-900 uppercase flex items-center gap-2">
+            <Users className="w-5 h-5 text-emerald-800" />
+            <span>Society Profile, Contacts & Committee Board</span>
+          </h2>
+          <p className="text-stone-500 text-xs mt-1">
+            Configure contact details, social media platforms, caddie hotlines, and c-suite committee profiles universally displayed across the platform.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          
+          {/* Left Column: Contact and Social Editors */}
+          <div className="space-y-6">
+            
+            {/* A. Contacts Card */}
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm text-left">
+              <h3 className="font-display font-bold text-sm text-stone-900 uppercase flex items-center gap-2 border-b pb-2.5 mb-4">
+                <Mail className="w-4 h-4 text-emerald-800" />
+                <span>Society Contact Details</span>
+              </h3>
+              
+              <form onSubmit={handleSaveContacts} className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700">Club Contact Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={draftEmail}
+                    onChange={e => setDraftEmail(e.target.value)}
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-800"
+                    placeholder="garrydavies1963@gmail.com"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700">Caddie Hotline Phone Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={draftPhone}
+                    onChange={e => setDraftPhone(e.target.value)}
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-800"
+                    placeholder="+353 (0) 86 123 4567"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700">Principal Playing Fields & Regions *</label>
+                  <input
+                    type="text"
+                    required
+                    value={draftFields}
+                    onChange={e => setDraftFields(e.target.value)}
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-800"
+                    placeholder="County Dublin & County Kerry links, Ireland..."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="bg-[#064e3b] hover:bg-emerald-900 text-white font-bold uppercase tracking-wider text-[11px] py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Update Contact Details</span>
+                </button>
+              </form>
+            </div>
+
+            {/* B. Social Networks Card */}
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm text-left">
+              <h3 className="font-display font-bold text-sm text-stone-900 uppercase flex items-center gap-2 border-b pb-2.5 mb-4">
+                <Globe className="w-4 h-4 text-emerald-800" />
+                <span>Connect & Follow Platforms</span>
+              </h3>
+              
+              <form onSubmit={handleSaveSocials} className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                    <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Facebook URL</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={draftFacebook}
+                    onChange={e => setDraftFacebook(e.target.value)}
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-800"
+                    placeholder="https://facebook.com/..."
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Discord Server Invitation URL</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={draftDiscord}
+                    onChange={e => setDraftDiscord(e.target.value)}
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-800"
+                    placeholder="https://discord.gg/..."
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                    <Youtube className="w-3.5 h-3.5 text-red-600" />
+                    <span>YouTube Channel URL</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={draftYoutube}
+                    onChange={e => setDraftYoutube(e.target.value)}
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none focus:border-emerald-800"
+                    placeholder="https://youtube.com/..."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="bg-[#064e3b] hover:bg-emerald-990 text-white font-bold uppercase tracking-wider text-[11px] py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Update Social Platforms</span>
+                </button>
+              </form>
+            </div>
+
+          </div>
+
+          {/* Right Column: Committee Board Management */}
+          <div className="space-y-6">
+            
+            {/* C. Promote Officer Card */}
+            <div className="bg-[#064e3b]/5 border-2 border-emerald-800/10 rounded-2xl p-5 text-left">
+              <h3 className="font-display font-bold text-sm text-stone-900 uppercase flex items-center gap-2 border-b border-stone-200 pb-2.5 mb-4">
+                <Plus className="w-4 h-4 text-emerald-800" />
+                <span>Promote Officer to Committee</span>
+              </h3>
+              
+              <form onSubmit={handleAddCommitteeOfficer} className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700">Select Member to Promote *</label>
+                  <select
+                    value={newOfficerId}
+                    onChange={e => setNewOfficerId(e.target.value)}
+                    required
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-stone-900 focus:outline-none"
+                  >
+                    <option value="">-- Select Member --</option>
+                    {members
+                      .filter(m => m.role !== 'Committee')
+                      .map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} (Hcp {m.handicap})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-stone-700">Committee Officer Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newOfficerTitle}
+                      onChange={e => setNewOfficerTitle(e.target.value)}
+                      placeholder="e.g. Treasurer"
+                      className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-[#0F172A] focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 justify-center">
+                    <span className="text-[10px] text-stone-400 leading-normal font-sans">Assign unique designations like Captain, President, Vice Captain, or Treasurer.</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-stone-700">Officer Notes & Statement *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newOfficerNotes}
+                    onChange={e => setNewOfficerNotes(e.target.value)}
+                    placeholder="e.g. Manages society finances & trophies"
+                    className="bg-white border border-stone-250 rounded-xl px-3 py-2 text-xs text-[#0F172A] focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="bg-[#064e3b] hover:bg-emerald-900 text-white font-bold uppercase tracking-wider text-[11px] py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-md w-full transition-colors"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Approve Promotion to Board</span>
+                </button>
+              </form>
+            </div>
+
+            {/* D. List & Edit Existing Officers */}
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm text-left">
+              <h3 className="font-display font-bold text-sm text-stone-900 uppercase flex items-center gap-2 border-b pb-2.5 mb-4">
+                <Users className="w-4 h-4 text-emerald-800" />
+                <span>Active Board of Directors ({members.filter(m => m.role === 'Committee').length})</span>
+              </h3>
+
+              <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
+                {members.filter(m => m.role === 'Committee').length === 0 ? (
+                  <p className="text-stone-400 text-center text-xs py-4 font-sans italic">No committee members assigned yet.</p>
+                ) : (
+                  members
+                    .filter(m => m.role === 'Committee')
+                    .map(m => (
+                      <CommitteeMemberRow
+                        key={m.id}
+                        member={m}
+                        onUpdate={handleUpdateOfficerInfo}
+                        onDelete={handleRemoveFromCommittee}
+                      />
+                    ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
       {/* 4. Security & Passcode Configuration Panel */}
       <section className="space-y-6">
         <div className="border-b border-stone-100 pb-3">
@@ -615,6 +959,87 @@ export default function AdminPanelTab({
 
       </section>
 
+    </div>
+  );
+}
+
+function CommitteeMemberRow({
+  member,
+  onUpdate,
+  onDelete
+}: {
+  member: Member;
+  onUpdate: (m: Member, title: string, notes: string) => void;
+  onDelete: (m: Member) => void;
+  key?: string;
+}) {
+  const [title, setTitle] = useState(member.committeeTitle || '');
+  const [notes, setNotes] = useState(member.notes || '');
+  const [isEditing, setIsEditing] = useState(false);
+
+  return (
+    <div className="border border-stone-150 rounded-xl p-3 bg-stone-50/40 space-y-2 text-xs">
+      <div className="flex items-center justify-between">
+        <div className="font-sans">
+          <span className="font-semibold text-stone-900 block">{member.name}</span>
+          <span className="text-[10px] text-stone-400 uppercase font-mono tracking-tight">Hcp {member.handicap}</span>
+        </div>
+        
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (isEditing) {
+                onUpdate(member, title, notes);
+                setIsEditing(false);
+              } else {
+                setIsEditing(true);
+              }
+            }}
+            className="p-1 px-2.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold uppercase text-[9px] transition-colors"
+          >
+            {isEditing ? 'Save' : 'Edit'}
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => onDelete(member)}
+            className="p-1 px-2 rounded bg-red-50 hover:bg-red-100 text-red-650 border border-red-200 font-bold uppercase text-[9px] transition-colors"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 pt-1">
+        <div>
+          <span className="text-[9px] text-stone-400 font-mono uppercase block">Title Role</span>
+          {isEditing ? (
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="w-full bg-white border border-stone-250 rounded px-2 py-1 focus:outline-none"
+            />
+          ) : (
+            <span className="font-medium text-emerald-800">{member.committeeTitle || 'Director'}</span>
+          )}
+        </div>
+
+        <div>
+          <span className="text-[9px] text-stone-400 font-mono uppercase block">Official Statement</span>
+          {isEditing ? (
+            <input
+              type="text"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="w-full bg-white border border-stone-250 rounded px-2 py-1 focus:outline-none"
+            />
+          ) : (
+            <span className="text-stone-600 block italic">"{member.notes || 'Serving the community.'}"</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
