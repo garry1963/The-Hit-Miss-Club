@@ -61,12 +61,8 @@ export default function LeagueTab({
   const [newDivName, setNewDivName] = useState('');
   const [showAddDiv, setShowAddDiv] = useState(false);
 
-  // Manual update options & CSV overrides (requested)
-  // Options: 'auto' (Calculated based on scores) | 'manual' (Direct override entering)
-  const [standingMode, setStandingMode] = useState<'auto' | 'manual'>(() => {
-    const saved = localStorage.getItem('hit_and_miss_club_standingMode_' + selectedDiv);
-    return (saved as 'auto' | 'manual') || 'auto';
-  });
+  // Standing entries are manual-entry only
+  const standingMode = 'manual';
 
   // Manual entries state persisted to localStorage
   const [manualEntries, setManualEntries] = useState<Record<string, StandingEntry[]>>(() => {
@@ -94,10 +90,7 @@ export default function LeagueTab({
     }
   }, [siteContent]);
 
-  // Sync mode changes to localStorage
-  useEffect(() => {
-    localStorage.setItem('hit_and_miss_club_standingMode_' + selectedDiv, standingMode);
-  }, [standingMode, selectedDiv]);
+  // Standing entries are manual-entry only
 
   // Sync manual standings across reloads
   useEffect(() => {
@@ -149,54 +142,7 @@ export default function LeagueTab({
   // Derive number of players in the selected division (requested)
   const divisionPlayerCount = members.filter(m => m.division === selectedDiv).length;
 
-  // Generate dynamic calculated standing on-the-fly
-  const calculatedRows = (() => {
-    // 1. Get completed rounds for this season
-    const completedEvents = events.filter(e => e.seasonId === activeSeasonId && e.status === 'Completed');
-    const completedEventIds = completedEvents.map(e => e.id);
-
-    // 2. Filter players by division
-    const divisionPlayers = members.filter(m => m.division === selectedDiv);
-
-    // 3. Form statistics
-    const rows = divisionPlayers.map(player => {
-      const scorecards = results.filter(r => completedEventIds.includes(r.eventId) && r.playerId === player.id);
-      const rounds = scorecards.length;
-
-      const totalGross = scorecards.reduce((acc, r) => acc + r.grossScore, 0);
-      const totalNet = scorecards.reduce((acc, r) => acc + r.netScore, 0);
-      const totalPoints = scorecards.reduce((acc, r) => acc + r.points, 0);
-
-      const avgGross = rounds > 0 ? Number((totalGross / rounds).toFixed(1)) : 0;
-      const avgNet = rounds > 0 ? Number((totalNet / rounds).toFixed(1)) : 0;
-
-      return {
-        id: player.id,
-        playerName: player.name,
-        handicap: player.handicap,
-        rounds,
-        avgGross,
-        avgNet,
-        totalPoints
-      };
-    });
-
-    // 4. Sort by: Total Points Desc, Rounds Desc, Handicap Asc
-    rows.sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      if (b.rounds !== a.rounds) return b.rounds - a.rounds;
-      return a.handicap - b.handicap;
-    });
-
-    return rows.map((r, i) => ({
-      ...r,
-      rank: i + 1
-    }));
-  })();
-
-  const currentEntries = standingMode === 'auto' 
-    ? calculatedRows 
-    : (manualEntries[selectedDiv] || []);
+  const currentEntries = manualEntries[selectedDiv] || [];
 
   const filteredStandings = currentEntries.filter(row =>
     row.playerName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -370,8 +316,7 @@ export default function LeagueTab({
             ...prev,
             [selectedDiv]: finalRanks
           }));
-          setStandingMode('manual');
-          alert(`Imported ${importedList.length} rows successfully! Standing mode is automatically toggled onto Manual override mode.`);
+          alert(`Imported ${importedList.length} rows successfully into manual standings!`);
         }
       } else {
         alert('Format not recognized. Heading should be Rank,Player,Handicap,Rounds,AVG Gross,AVG Net,Total Points.');
@@ -530,44 +475,6 @@ export default function LeagueTab({
         </form>
       )}
 
-      {/* 4. Dynamic/Manual Mode Toggle Banner */}
-      {isAdmin && (
-        <div className="bg-stone-50 border-2 border-dashed border-stone-200 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="space-y-0.5">
-            <h4 className="text-xs font-bold uppercase text-emerald-950 flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-[#fbbf24]" />
-              <span>Admin Control: Ledger Calculation State</span>
-            </h4>
-            <p className="text-xs text-stone-500">
-              Switching to <strong>Manual Override Mode</strong> lets you directly customize cell values for this divisional table without detail entry logs.
-            </p>
-          </div>
-
-          <div className="flex gap-2 bg-white border border-stone-200 p-1 rounded-lg text-xs">
-            <button
-              onClick={() => setStandingMode('auto')}
-              className={`px-4 py-1.5 rounded-md font-bold transition-all ${
-                standingMode === 'auto'
-                  ? 'bg-emerald-850 text-white shadow-sm'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              ⚡ Dynamic Auto-Calculate
-            </button>
-            <button
-              onClick={() => setStandingMode('manual')}
-              className={`px-4 py-1.5 rounded-md font-bold transition-all ${
-                standingMode === 'manual'
-                  ? 'bg-amber-500 text-stone-950 shadow-sm'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              ✏️ Manual Input / Direct Ovr
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 5. Custom standing row form modal */}
       {isAdmin && showAddEntryForm && (
         <div className="bg-stone-50 border-2 border-amber-500/50 rounded-2xl p-6 shadow-md animate-fadeIn">
@@ -722,9 +629,7 @@ export default function LeagueTab({
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span className="text-stone-400 text-xs font-mono font-medium block">
-            {standingMode === 'auto' 
-              ? `Dynamic system calculation based on historical season scorecard entries.` 
-              : `Manual standing state override is active. Custom records will override scores.`}
+            Manual standing state is active. Custom records are manually managed by committee administrators.
           </span>
 
           <div className="relative text-xs w-full sm:w-60">
