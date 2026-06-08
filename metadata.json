@@ -1,0 +1,6 @@
+{
+  "name": "The Hit & Miss Club",
+  "description": "The official website for The Hit & Miss Club golf society, managing fixtures, results, standings, and member stats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
