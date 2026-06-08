@@ -594,11 +594,6 @@ export default function MembersTab({
                       >
                         <td className="py-3.5 px-5 font-semibold text-stone-900">
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={m.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.name}`} 
-                              alt={m.name} 
-                              className="w-8 h-8 rounded-full bg-stone-50 border border-stone-150 p-0.5 object-cover flex-shrink-0"
-                            />
                             <div className="flex flex-col">
                               <span className="font-bold flex items-center gap-1.5 text-stone-850 hover:text-emerald-800 transition-colors">
                                 {m.name}

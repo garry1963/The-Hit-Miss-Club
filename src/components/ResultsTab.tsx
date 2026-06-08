@@ -505,11 +505,6 @@ export default function ResultsTab({
                         </td>
                         <td className="py-4 px-5 font-semibold text-stone-900 font-sans">
                           <div className="flex items-center gap-2">
-                            <img 
-                              src={member?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=fallback'} 
-                              alt={member?.name || 'Player'} 
-                              className="w-6 h-6 rounded-full bg-stone-100 border border-stone-200 flex-shrink-0"
-                            />
                             <span>{member ? member.name : 'Unknown player'}</span>
                             {member?.role === 'Committee' && (
                               <span className="bg-emerald-50 text-emerald-800 text-[8px] uppercase font-bold px-1 py-0.5 rounded border border-emerald-200">
