@@ -101,15 +101,6 @@ export default function Header({
                 H&M
               </div>
             </div>
-            
-            <div className="flex flex-col">
-              <span className="font-display font-bold text-base sm:text-lg tracking-wider text-[#fbbf24] group-hover:text-yellow-400 transition-colors duration-200 uppercase">
-                The Hit & Miss
-              </span>
-              <span className="font-sans text-[10px] tracking-widest text-emerald-300 font-medium uppercase -mt-1">
-                Golf Society Est. 2021
-              </span>
-            </div>
           </div>
 
           {/* Desktop Navigation */}

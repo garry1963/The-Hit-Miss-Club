@@ -32,6 +32,7 @@ interface StandingEntry {
   avgGross: number;
   avgNet: number;
   totalPoints: number;
+  wins: number;
 }
 
 export default function LeagueTab({
@@ -82,6 +83,7 @@ export default function LeagueTab({
   const [entryAvgGross, setEntryAvgGross] = useState(0);
   const [entryAvgNet, setEntryAvgNet] = useState(0);
   const [entryTotalPoints, setEntryTotalPoints] = useState(0);
+  const [entryWins, setEntryWins] = useState(0);
 
   // Synchronize site rules
   useEffect(() => {
@@ -156,6 +158,7 @@ export default function LeagueTab({
     setEntryAvgGross(84);
     setEntryAvgNet(72);
     setEntryTotalPoints(45);
+    setEntryWins(0);
     setEditingEntry(null);
     setShowAddEntryForm(true);
     setFormError('');
@@ -169,6 +172,7 @@ export default function LeagueTab({
     setEntryAvgGross(entry.avgGross);
     setEntryAvgNet(entry.avgNet);
     setEntryTotalPoints(entry.totalPoints);
+    setEntryWins(entry.wins || 0);
     setShowAddEntryForm(true);
     setFormError('');
   };
@@ -203,6 +207,7 @@ export default function LeagueTab({
       avgGross: Number(entryAvgGross),
       avgNet: Number(entryAvgNet),
       totalPoints: Number(entryTotalPoints),
+      wins: Number(entryWins),
     };
 
     const activeList = manualEntries[selectedDiv] || [];
@@ -214,9 +219,10 @@ export default function LeagueTab({
       updatedList = [...activeList, payload];
     }
 
-    // Sort manual entries by points descending, rounds descending
+    // Sort manual entries by points descending, wins descending, rounds descending
     updatedList.sort((a, b) => {
       if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
       return b.rounds - a.rounds;
     });
 
@@ -238,7 +244,7 @@ export default function LeagueTab({
 
   // CSV Export for Divisional table
   const handleCSVDownload = () => {
-    const headers = ['Rank', 'Player', 'Handicap', 'Rounds', 'AVG Gross', 'AVG Net', 'Total Points'];
+    const headers = ['Rank', 'Player', 'Handicap', 'Rounds', 'AVG Gross', 'AVG Net', 'Wins', 'Total Points'];
     const rows = currentEntries.map(e => [
       e.rank,
       `"${e.playerName.replace(/"/g, '""')}"`,
@@ -246,6 +252,7 @@ export default function LeagueTab({
       e.rounds,
       e.avgGross,
       e.avgNet,
+      e.wins || 0,
       e.totalPoints
     ]);
 
@@ -287,7 +294,16 @@ export default function LeagueTab({
         const csvRounds = parseInt(parts[3]?.trim() || '0');
         const csvAvgGross = parseFloat(parts[4]?.trim() || '0');
         const csvAvgNet = parseFloat(parts[5]?.trim() || '0');
-        const csvTotalPoints = parseFloat(parts[6]?.trim() || '0');
+        
+        // Handle optional and positional Wins vs Total Points
+        let csvWins = 0;
+        let csvTotalPoints = 0;
+        if (parts.length >= 8) {
+          csvWins = parseInt(parts[6]?.trim() || '0');
+          csvTotalPoints = parseFloat(parts[7]?.trim() || '0');
+        } else {
+          csvTotalPoints = parseFloat(parts[6]?.trim() || '0');
+        }
 
         if (!csvPlayer) continue;
 
@@ -299,6 +315,7 @@ export default function LeagueTab({
           rounds: isNaN(csvRounds) ? 0 : csvRounds,
           avgGross: isNaN(csvAvgGross) ? 0 : csvAvgGross,
           avgNet: isNaN(csvAvgNet) ? 0 : csvAvgNet,
+          wins: isNaN(csvWins) ? 0 : csvWins,
           totalPoints: isNaN(csvTotalPoints) ? 0 : csvTotalPoints
         });
       }
@@ -306,7 +323,11 @@ export default function LeagueTab({
       if (importedList.length > 0) {
         if (window.confirm(`Parsed ${importedList.length} player standing rows. Import and set as current manual overrides for ${selectedDiv}?`)) {
           // Sort and rank
-          importedList.sort((a, b) => b.totalPoints - a.totalPoints);
+          importedList.sort((a, b) => {
+            if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+            if ((b.wins || 0) !== (a.wins || 0)) return (b.wins || 0) - (a.wins || 0);
+            return b.rounds - a.rounds;
+          });
           const finalRanks = importedList.map((item, idx) => ({
             ...item,
             rank: idx + 1
@@ -319,7 +340,7 @@ export default function LeagueTab({
           alert(`Imported ${importedList.length} rows successfully into manual standings!`);
         }
       } else {
-        alert('Format not recognized. Heading should be Rank,Player,Handicap,Rounds,AVG Gross,AVG Net,Total Points.');
+        alert('Format not recognized. Heading should be Rank,Player,Handicap,Rounds,AVG Gross,AVG Net,Wins,Total Points (or Rank,Player,Handicap,Rounds,AVG Gross,AVG Net,Total Points).');
       }
     };
     reader.readAsText(file);
@@ -491,13 +512,32 @@ export default function LeagueTab({
 
             <div className="sm:col-span-4 flex flex-col gap-1">
               <label className="font-semibold text-stone-600">Player Name</label>
-              <input
-                type="text"
+              <select
                 value={entryPlayerName}
-                onChange={e => setEntryPlayerName(e.target.value)}
-                placeholder="Name"
-                className="bg-white border rounded px-3 py-2 text-stone-900"
-              />
+                onChange={e => {
+                  const selectedName = e.target.value;
+                  setEntryPlayerName(selectedName);
+                  // Dynamically set handicap matching selected member
+                  const foundMember = members.find(m => m.name === selectedName);
+                  if (foundMember) {
+                    setEntryHandicap(foundMember.handicap);
+                  }
+                }}
+                className="bg-white border rounded px-3 py-2 text-stone-900 focus:outline-none focus:ring-1 focus:ring-emerald-800"
+              >
+                <option value="">-- Select Player --</option>
+                {entryPlayerName && !members.some(m => m.name === entryPlayerName) && (
+                  <option value={entryPlayerName}>{entryPlayerName} (Custom/Unlisted)</option>
+                )}
+                {[...members]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(m => (
+                    <option key={m.id} value={m.name}>
+                      {m.name} (Hcp {m.handicap})
+                    </option>
+                  ))
+                }
+              </select>
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1">
@@ -549,6 +589,16 @@ export default function LeagueTab({
                 type="number"
                 value={entryTotalPoints}
                 onChange={e => setEntryTotalPoints(Number(e.target.value))}
+                className="bg-white border rounded px-3 py-2 text-stone-900"
+              />
+            </div>
+
+            <div className="sm:col-span-2 flex flex-col gap-1">
+              <label className="font-semibold text-stone-600">Wins</label>
+              <input
+                type="number"
+                value={entryWins}
+                onChange={e => setEntryWins(Number(e.target.value))}
                 className="bg-white border rounded px-3 py-2 text-stone-900"
               />
             </div>
@@ -655,13 +705,13 @@ export default function LeagueTab({
                 <th className="py-4 px-4 text-center">AVG Gross</th>
                 <th className="py-4 px-4 text-center">AVG Net</th>
                 <th className="py-4 px-5 text-right">Total Points</th>
-                {isAdmin && standingMode === 'manual' && <th className="py-4 px-5 text-right w-24">Actions</th>}
+                <th className="py-4 px-5 text-right w-28">WINS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 font-sans text-stone-750">
               {filteredStandings.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin && standingMode === 'manual' ? 8 : 7} className="py-12 text-center text-stone-400 font-mono">
+                  <td colSpan={8} className="py-12 text-center text-stone-400 font-mono">
                     ⚠️ No compatible divisional standing rows found.
                   </td>
                 </tr>
@@ -703,27 +753,30 @@ export default function LeagueTab({
                       {row.totalPoints} PTS
                     </td>
 
-                    {/* Edit controls */}
-                    {isAdmin && standingMode === 'manual' && (
-                      <td className="py-3.5 px-5 text-right">
-                        <div className="inline-flex gap-1">
-                          <button
-                            onClick={() => handleEditEntryClick(row)}
-                            className="p-1 rounded text-stone-400 hover:text-emerald-700 hover:bg-stone-50"
-                            title="Edit overrides row"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEntry(row.id)}
-                            className="p-1 rounded text-stone-400 hover:text-red-650 hover:bg-stone-50"
-                            title="Delete custom row"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    )}
+                    {/* Wins column housing both number of wins and admin actions */}
+                    <td className="py-3.5 px-5 text-right">
+                      <div className="inline-flex items-center justify-end gap-2 text-right w-full">
+                        <span className="font-mono font-bold text-stone-900 text-xs sm:text-sm">{row.wins || 0}</span>
+                        {isAdmin && standingMode === 'manual' && (
+                          <div className="inline-flex gap-1 border-l border-stone-200 pl-1.5 ml-1">
+                            <button
+                              onClick={() => handleEditEntryClick(row)}
+                              className="p-1 rounded text-stone-400 hover:text-emerald-705 hover:bg-stone-50"
+                              title="Edit overrides row"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEntry(row.id)}
+                              className="p-1 rounded text-stone-400 hover:text-red-600 hover:bg-stone-50"
+                              title="Delete custom row"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
