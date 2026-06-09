@@ -91,8 +91,8 @@ export default function MembersTab({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !joinedDate) {
-      setFormError('Please fill in required fields (Name, Email, Joined Date).');
+    if (!name || !joinedDate) {
+      setFormError('Please fill in required fields (Name, Joined Date).');
       return;
     }
 
@@ -371,7 +371,7 @@ export default function MembersTab({
             </div>
 
             <div className="md:col-span-4 flex flex-col gap-1">
-              <label className="font-semibold text-stone-700">Email Address *</label>
+              <label className="font-semibold text-stone-700">Email Address (Optional)</label>
               <input
                 type="email"
                 value={email}
