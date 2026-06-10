@@ -5,15 +5,6 @@
 
 import { useState, useEffect } from 'react';
 import { Member, Season, Division, GolfCourse, Event, TournamentResult, NewsArticle, GalleryImage, StandingsRow } from './types';
-import {
-  INITIAL_MEMBERS,
-  INITIAL_SEASONS,
-  INITIAL_GOLF_COURSES,
-  INITIAL_EVENTS,
-  INITIAL_RESULTS,
-  INITIAL_NEWS,
-  INITIAL_GALLERY
-} from './data';
 import { DEFAULT_SITE_CONTENT } from './defaultContent';
 import { db } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
@@ -29,7 +20,7 @@ export function useSocietyState() {
 
   const [activeSeasonId, setActiveSeasonId] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'activeSeasonId');
-    return saved || 'season-2026';
+    return saved || '';
   });
 
   // Load state helper (fallback / fast-cache)
@@ -51,17 +42,14 @@ export function useSocietyState() {
     return saved || 'admin';
   });
 
-  const [members, setMembers] = useState<Member[]>(() => getStored('members', INITIAL_MEMBERS));
-  const [seasons, setSeasons] = useState<Season[]>(() => getStored('seasons', INITIAL_SEASONS));
-  const [divisions, setDivisions] = useState<Division[]>(() => getStored('divisions', [
-    { id: 'div-premier', name: 'Premier Division' },
-    { id: 'div-championship', name: 'Championship Division' }
-  ]));
-  const [courses, setCourses] = useState<GolfCourse[]>(() => getStored('courses', INITIAL_GOLF_COURSES));
-  const [events, setEvents] = useState<Event[]>(() => getStored('events', INITIAL_EVENTS));
-  const [results, setResults] = useState<TournamentResult[]>(() => getStored('results', INITIAL_RESULTS));
-  const [news, setNews] = useState<NewsArticle[]>(() => getStored('news', INITIAL_NEWS));
-  const [gallery, setGallery] = useState<GalleryImage[]>(() => getStored('gallery', INITIAL_GALLERY));
+  const [members, setMembers] = useState<Member[]>(() => getStored('members', []));
+  const [seasons, setSeasons] = useState<Season[]>(() => getStored('seasons', []));
+  const [divisions, setDivisions] = useState<Division[]>(() => getStored('divisions', []));
+  const [courses, setCourses] = useState<GolfCourse[]>(() => getStored('courses', []));
+  const [events, setEvents] = useState<Event[]>(() => getStored('events', []));
+  const [results, setResults] = useState<TournamentResult[]>(() => getStored('results', []));
+  const [news, setNews] = useState<NewsArticle[]>(() => getStored('news', []));
+  const [gallery, setGallery] = useState<GalleryImage[]>(() => getStored('gallery', []));
   const [siteContent, setSiteContent] = useState<Record<string, string>>(() => getStored('siteContent', DEFAULT_SITE_CONTENT));
 
   // Connection test on boot
@@ -134,15 +122,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as Member);
       });
-      if (list.length > 0) {
-        setMembers(list);
-      } else {
-        INITIAL_MEMBERS.forEach(item => {
-          setDoc(doc(db, 'members', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `members/${item.id}`);
-          });
-        });
-      }
+      setMembers(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'members');
     });
@@ -152,15 +132,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as Season);
       });
-      if (list.length > 0) {
-        setSeasons(list);
-      } else {
-        INITIAL_SEASONS.forEach(item => {
-          setDoc(doc(db, 'seasons', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `seasons/${item.id}`);
-          });
-        });
-      }
+      setSeasons(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'seasons');
     });
@@ -170,19 +142,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as Division);
       });
-      if (list.length > 0) {
-        setDivisions(list);
-      } else {
-        const initialDivs = [
-          { id: 'div-premier', name: 'Premier Division' },
-          { id: 'div-championship', name: 'Championship Division' }
-        ];
-        initialDivs.forEach(item => {
-          setDoc(doc(db, 'divisions', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `divisions/${item.id}`);
-          });
-        });
-      }
+      setDivisions(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'divisions');
     });
@@ -192,15 +152,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as GolfCourse);
       });
-      if (list.length > 0) {
-        setCourses(list);
-      } else {
-        INITIAL_GOLF_COURSES.forEach(item => {
-          setDoc(doc(db, 'courses', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `courses/${item.id}`);
-          });
-        });
-      }
+      setCourses(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'courses');
     });
@@ -210,15 +162,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as Event);
       });
-      if (list.length > 0) {
-        setEvents(list);
-      } else {
-        INITIAL_EVENTS.forEach(item => {
-          setDoc(doc(db, 'events', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `events/${item.id}`);
-          });
-        });
-      }
+      setEvents(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'events');
     });
@@ -228,15 +172,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as TournamentResult);
       });
-      if (list.length > 0) {
-        setResults(list);
-      } else {
-        INITIAL_RESULTS.forEach(item => {
-          setDoc(doc(db, 'results', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `results/${item.id}`);
-          });
-        });
-      }
+      setResults(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'results');
     });
@@ -246,15 +182,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as NewsArticle);
       });
-      if (list.length > 0) {
-        setNews(list);
-      } else {
-        INITIAL_NEWS.forEach(item => {
-          setDoc(doc(db, 'news', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `news/${item.id}`);
-          });
-        });
-      }
+      setNews(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'news');
     });
@@ -264,15 +192,7 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         list.push(doc.data() as GalleryImage);
       });
-      if (list.length > 0) {
-        setGallery(list);
-      } else {
-        INITIAL_GALLERY.forEach(item => {
-          setDoc(doc(db, 'gallery', item.id), item).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `gallery/${item.id}`);
-          });
-        });
-      }
+      setGallery(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'gallery');
     });
@@ -285,15 +205,7 @@ export function useSocietyState() {
           contentMap[data.key] = data.value;
         }
       });
-      if (snapshot.size > 0) {
-        setSiteContent(contentMap);
-      } else {
-        Object.entries(DEFAULT_SITE_CONTENT).forEach(([key, value]) => {
-          setDoc(doc(db, 'siteContent', key), { key, value }).catch(err => {
-            handleFirestoreError(err, OperationType.WRITE, `siteContent/${key}`);
-          });
-        });
-      }
+      setSiteContent(contentMap);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'siteContent');
     });
@@ -307,7 +219,7 @@ export function useSocietyState() {
         }
       });
       if (snapshot.size === 0) {
-        setDoc(doc(db, 'settings', 'config'), { adminPassword: 'admin', activeSeasonId: 'season-2026' }).catch(err => {
+        setDoc(doc(db, 'settings', 'config'), { adminPassword: 'admin', activeSeasonId: '' }).catch(err => {
           handleFirestoreError(err, OperationType.WRITE, 'settings/config');
         });
       }
@@ -352,54 +264,62 @@ export function useSocietyState() {
 
   // Actions
   const resetDatabase = async () => {
-    if (window.confirm('Are you sure you want to reset the database? This will clear all edits and restore initial club data from local cache.')) {
+    if (window.confirm('Are you sure you want to clear the entire database? This will delete all members, courses, results, tournaments, gallery, and news.')) {
       try {
-        // Clear and rewrite with initial data
-        for (const item of INITIAL_MEMBERS) {
-          await setDoc(doc(db, 'members', item.id), item);
+        // Clear all edits and collections from Firestore
+        for (const item of members) {
+          await deleteDoc(doc(db, 'members', item.id));
         }
-        for (const item of INITIAL_SEASONS) {
-          await setDoc(doc(db, 'seasons', item.id), item);
+        for (const item of seasons) {
+          await deleteDoc(doc(db, 'seasons', item.id));
         }
-        const initialDivs = [
-          { id: 'div-premier', name: 'Premier Division' },
-          { id: 'div-championship', name: 'Championship Division' }
-        ];
-        for (const item of initialDivs) {
-          await setDoc(doc(db, 'divisions', item.id), item);
+        for (const item of divisions) {
+          await deleteDoc(doc(db, 'divisions', item.id));
         }
-        for (const item of INITIAL_GOLF_COURSES) {
-          await setDoc(doc(db, 'courses', item.id), item);
+        for (const item of courses) {
+          await deleteDoc(doc(db, 'courses', item.id));
         }
-        for (const item of INITIAL_EVENTS) {
-          await setDoc(doc(db, 'events', item.id), item);
+        for (const item of events) {
+          await deleteDoc(doc(db, 'events', item.id));
         }
-        for (const item of INITIAL_RESULTS) {
-          await setDoc(doc(db, 'results', item.id), item);
+        for (const item of results) {
+          await deleteDoc(doc(db, 'results', item.id));
         }
-        for (const item of INITIAL_NEWS) {
-          await setDoc(doc(db, 'news', item.id), item);
+        for (const item of news) {
+          await deleteDoc(doc(db, 'news', item.id));
         }
-        for (const item of INITIAL_GALLERY) {
-          await setDoc(doc(db, 'gallery', item.id), item);
+        for (const item of gallery) {
+          await deleteDoc(doc(db, 'gallery', item.id));
         }
-        for (const [key, value] of Object.entries(DEFAULT_SITE_CONTENT)) {
-          await setDoc(doc(db, 'siteContent', key), { key, value });
+        for (const key of Object.keys(siteContent)) {
+          await deleteDoc(doc(db, 'siteContent', key));
         }
-        await setDoc(doc(db, 'settings', 'config'), { adminPassword: 'admin', activeSeasonId: 'season-2026' });
+        await setDoc(doc(db, 'settings', 'config'), { adminPassword: 'admin', activeSeasonId: '' });
 
-        setMembers(INITIAL_MEMBERS);
-        setSeasons(INITIAL_SEASONS);
-        setDivisions(initialDivs);
-        setCourses(INITIAL_GOLF_COURSES);
-        setEvents(INITIAL_EVENTS);
-        setResults(INITIAL_RESULTS);
-        setNews(INITIAL_NEWS);
-        setGallery(INITIAL_GALLERY);
+        setMembers([]);
+        setSeasons([]);
+        setDivisions([]);
+        setCourses([]);
+        setEvents([]);
+        setResults([]);
+        setNews([]);
+        setGallery([]);
         setSiteContent(DEFAULT_SITE_CONTENT);
-        setActiveSeasonId('season-2026');
+        setActiveSeasonId('');
         setAdminPassword('admin');
         setIsAdmin(false);
+
+        // Clear cached items in localStorage
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'activeSeasonId');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'members');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'seasons');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'divisions');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'courses');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'events');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'results');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'news');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'gallery');
+        localStorage.removeItem(STORAGE_KEY_PREFIX + 'siteContent');
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, 'resetDatabase');
       }
