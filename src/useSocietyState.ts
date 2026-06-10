@@ -12,6 +12,16 @@ import { handleFirestoreError, OperationType } from './utils/firestoreError';
 
 const STORAGE_KEY_PREFIX = 'hit_and_miss_club_v1_';
 
+function cleanUndefined<T extends object>(obj: T): T {
+  const cleaned = { ...obj } as any;
+  Object.keys(cleaned).forEach((key) => {
+    if (cleaned[key] === undefined) {
+      delete cleaned[key];
+    }
+  });
+  return cleaned;
+}
+
 export function useSocietyState() {
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'isAdmin');
@@ -356,18 +366,20 @@ export function useSocietyState() {
       id: 'member-' + Date.now(),
     };
     try {
-      await setDoc(doc(db, 'members', newMember.id), newMember);
+      await setDoc(doc(db, 'members', newMember.id), cleanUndefined(newMember));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `members/${newMember.id}`);
+      throw err;
     }
     return newMember;
   };
 
   const updateMember = async (updated: Member) => {
     try {
-      await setDoc(doc(db, 'members', updated.id), updated);
+      await setDoc(doc(db, 'members', updated.id), cleanUndefined(updated));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `members/${updated.id}`);
+      throw err;
     }
   };
 
@@ -392,18 +404,20 @@ export function useSocietyState() {
       id: 'event-' + Date.now()
     };
     try {
-      await setDoc(doc(db, 'events', newEvent.id), newEvent);
+      await setDoc(doc(db, 'events', newEvent.id), cleanUndefined(newEvent));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `events/${newEvent.id}`);
+      throw err;
     }
     return newEvent;
   };
 
   const updateEvent = async (updated: Event) => {
     try {
-      await setDoc(doc(db, 'events', updated.id), updated);
+      await setDoc(doc(db, 'events', updated.id), cleanUndefined(updated));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `events/${updated.id}`);
+      throw err;
     }
   };
 

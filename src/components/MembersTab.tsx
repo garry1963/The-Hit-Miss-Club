@@ -49,7 +49,7 @@ export default function MembersTab({
   const [name, setName] = useState('');
   const [handicap, setHandicap] = useState(18.0);
   const [email, setEmail] = useState('');
-  const [joinedDate, setJoinedDate] = useState('');
+  const [joinedDate, setJoinedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [role, setRole] = useState<'Committee' | 'Member'>('Member');
   const [committeeTitle, setCommitteeTitle] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
@@ -61,7 +61,7 @@ export default function MembersTab({
     setName('');
     setHandicap(18.0);
     setEmail('');
-    setJoinedDate('');
+    setJoinedDate(new Date().toISOString().split('T')[0]);
     setRole('Member');
     setCommitteeTitle('');
     setGender('Male');
@@ -89,7 +89,7 @@ export default function MembersTab({
     setShowAddForm(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !joinedDate) {
       setFormError('Please fill in required fields (Name, Joined Date).');
@@ -113,18 +113,35 @@ export default function MembersTab({
       division
     };
 
-    if (editingMember) {
-      updateMember({
-        ...editingMember,
-        ...payload
-      });
-      alert('Member information adjusted successfully.');
-    } else {
-      addMember(payload);
-      alert('New player registered on society database.');
+    try {
+      if (editingMember) {
+        await updateMember({
+          ...editingMember,
+          ...payload
+        });
+        alert('Member information adjusted successfully.');
+      } else {
+        await addMember(payload);
+        alert('New player registered on society database.');
+      }
+      resetForm();
+    } catch (err: any) {
+      console.error(err);
+      let errMsg = 'Failed to save member. Please check that you entered valid parameters.';
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed && parsed.error) {
+            errMsg = `Database write rejected: ${parsed.error}`;
+          } else {
+            errMsg = err.message;
+          }
+        } catch {
+          errMsg = err.message;
+        }
+      }
+      setFormError(errMsg);
     }
-
-    resetForm();
   };
 
   // Status/Activation Quick toggle
