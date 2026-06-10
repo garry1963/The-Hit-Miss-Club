@@ -1,0 +1,146 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common helper primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidMember(m) {
+      return m.id is string && m.name is string && m.name.size() <= 128
+        && m.handicap is number
+        && m.joinedDate is string && m.avatar is string
+        && m.role is string
+        && m.active is bool
+        && m.gender is string
+        && m.division is string;
+    }
+
+    function isValidSeason(s) {
+      return s.id is string && s.name is string && s.isActive is bool;
+    }
+
+    function isValidDivision(d) {
+      return d.id is string && d.name is string;
+    }
+
+    function isValidGolfCourse(c) {
+      return c.id is string && c.name is string && c.location is string
+        && c.par is number && c.difficulty is string
+        && c.websiteUrl is string && c.imageUrl is string
+        && c.description is string;
+    }
+
+    function isValidEvent(e) {
+      return e.id is string && e.seasonId is string && e.title is string
+        && e.courseId is string && e.date is string && e.endDate is string
+        && e.roundsCount is number && e.format is string
+        && e.status is string;
+    }
+
+    function isValidTournamentResult(r) {
+      return r.id is string && r.eventId is string && r.playerId is string
+        && r.grossScore is number && r.netScore is number
+        && r.points is number && r.position is number;
+    }
+
+    function isValidNewsArticle(n) {
+      return n.id is string && n.title is string && n.summary is string
+        && n.content is string && n.date is string && n.author is string
+        && n.category is string && n.image is string && n.isFeatured is bool;
+    }
+
+    function isValidGalleryImage(g) {
+      return g.id is string && g.imageUrl is string && g.caption is string
+        && g.category is string && g.date is string;
+    }
+
+    function isValidSiteContent(sc) {
+      return sc.key is string && sc.value is string;
+    }
+
+    function isValidClubSettings(cs) {
+      return cs.adminPassword is string && cs.activeSeasonId is string;
+    }
+
+    // Rules for each collection
+    match /members/{memberId} {
+      allow read: if true;
+      allow create, update: if isValidMember(incoming());
+      allow delete: if true;
+    }
+
+    match /seasons/{seasonId} {
+      allow read: if true;
+      allow create, update: if isValidSeason(incoming());
+      allow delete: if true;
+    }
+
+    match /divisions/{divisionId} {
+      allow read: if true;
+      allow create, update: if isValidDivision(incoming());
+      allow delete: if true;
+    }
+
+    match /courses/{courseId} {
+      allow read: if true;
+      allow create, update: if isValidGolfCourse(incoming());
+      allow delete: if true;
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update: if isValidEvent(incoming());
+      allow delete: if true;
+    }
+
+    match /results/{resultId} {
+      allow read: if true;
+      allow create, update: if isValidTournamentResult(incoming());
+      allow delete: if true;
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow create, update: if isValidNewsArticle(incoming());
+      allow delete: if true;
+    }
+
+    match /gallery/{galleryId} {
+      allow read: if true;
+      allow create, update: if isValidGalleryImage(incoming());
+      allow delete: if true;
+    }
+
+    match /siteContent/{contentId} {
+      allow read: if true;
+      allow create, update: if isValidSiteContent(incoming());
+      allow delete: if true;
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidClubSettings(incoming());
+      allow delete: if true;
+    }
+  }
+}

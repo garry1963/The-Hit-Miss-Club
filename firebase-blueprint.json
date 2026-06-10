@@ -1,0 +1,195 @@
+{
+  "entities": {
+    "Member": {
+      "title": "Member",
+      "description": "A golf club society member profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "handicap": { "type": "number" },
+        "email": { "type": "string" },
+        "joinedDate": { "type": "string" },
+        "avatar": { "type": "string" },
+        "role": { "type": "string", "enum": ["Committee", "Member"] },
+        "committeeTitle": { "type": "string" },
+        "active": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "division": { "type": "string" }
+      },
+      "required": ["id", "name", "handicap", "joinedDate", "avatar", "role", "active", "gender", "division"]
+    },
+    "Season": {
+      "title": "Season",
+      "description": "A tournament season campaign.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "name", "isActive"]
+    },
+    "Division": {
+      "title": "Division",
+      "description": "A player division within the society.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "GolfCourse": {
+      "title": "GolfCourse",
+      "description": "Details of a golf course played by the society.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "par": { "type": "number" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "websiteUrl": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "notes": { "type": "string" },
+        "holes": { "type": "number" },
+        "courseRating": { "type": "number" },
+        "slopeRating": { "type": "number" },
+        "website": { "type": "string" }
+      },
+      "required": ["id", "name", "location", "par", "difficulty", "websiteUrl", "imageUrl", "description"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "An event or tournament scheduled in a season.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "seasonId": { "type": "string" },
+        "title": { "type": "string" },
+        "courseId": { "type": "string" },
+        "date": { "type": "string" },
+        "endDate": { "type": "string" },
+        "roundsCount": { "type": "number" },
+        "format": { "type": "string", "enum": ["Stableford", "Stroke Play", "Modified Stableford"] },
+        "classification": { "type": "string", "enum": ["Major", "Standard", "Alternate"] },
+        "status": { "type": "string", "enum": ["Upcoming", "Completed"] },
+        "notes": { "type": "string" },
+        "maxPlayers": { "type": "number" },
+        "time": { "type": "string" }
+      },
+      "required": ["id", "seasonId", "title", "courseId", "date", "endDate", "roundsCount", "format", "status"]
+    },
+    "TournamentResult": {
+      "title": "TournamentResult",
+      "description": "Standings and scores for a specific player in a tournament event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "grossScore": { "type": "number" },
+        "handicap": { "type": "number" },
+        "netScore": { "type": "number" },
+        "points": { "type": "number" },
+        "position": { "type": "number" }
+      },
+      "required": ["id", "eventId", "playerId", "grossScore", "netScore", "points", "position"]
+    },
+    "NewsArticle": {
+      "title": "NewsArticle",
+      "description": "A club news/announcement article.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string", "enum": ["Announcement", "Tournament Wrapup", "Social", "General"] },
+        "image": { "type": "string" },
+        "isFeatured": { "type": "boolean" }
+      },
+      "required": ["id", "title", "summary", "content", "date", "author", "category", "image", "isFeatured"]
+    },
+    "GalleryImage": {
+      "title": "GalleryImage",
+      "description": "A photograph/image uploaded to the society gallery.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "category": { "type": "string", "enum": ["Tournaments", "Courses", "Social", "Trophy"] },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "imageUrl", "caption", "category", "date"]
+    },
+    "SiteContent": {
+      "title": "SiteContent",
+      "description": "Configurable dynamic text key-value pair for the website.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["key", "value"]
+    },
+    "ClubSettings": {
+      "title": "ClubSettings",
+      "description": "Global settings for the golf society.",
+      "type": "object",
+      "properties": {
+        "adminPassword": { "type": "string" },
+        "activeSeasonId": { "type": "string" }
+      },
+      "required": ["adminPassword", "activeSeasonId"]
+    }
+  },
+  "firestore": {
+    "/members/{memberId}": {
+      "schema": "Member",
+      "description": "Collection of golf society members."
+    },
+    "/seasons/{seasonId}": {
+      "schema": "Season",
+      "description": "Collection of match seasons."
+    },
+    "/divisions/{divisionId}": {
+      "schema": "Division",
+      "description": "Collection of available club divisions."
+    },
+    "/courses/{courseId}": {
+      "schema": "GolfCourse",
+      "description": "Collection of courses played by the club."
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Collection of Scheduled or Completed tournaments."
+    },
+    "/results/{resultId}": {
+      "schema": "TournamentResult",
+      "description": "Collection of tournament standings results."
+    },
+    "/news/{newsId}": {
+      "schema": "NewsArticle",
+      "description": "Collection of society news articles."
+    },
+    "/gallery/{galleryId}": {
+      "schema": "GalleryImage",
+      "description": "Collection of dynamic gallery photos."
+    },
+    "/siteContent/{contentId}": {
+      "schema": "SiteContent",
+      "description": "Dynamic configurable text content."
+    },
+    "/settings/{settingId}": {
+      "schema": "ClubSettings",
+      "description": "Global custom database configurations."
+    }
+  }
+}
