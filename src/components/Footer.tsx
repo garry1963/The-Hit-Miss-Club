@@ -41,7 +41,7 @@ export default function Footer({ setCurrentTab, isAdmin, siteContent }: FooterPr
             </div>
             
             <p className="text-stone-400 text-sm leading-relaxed">
-              Serving our community of amateur golfers since 2021. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.
+              Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.
             </p>
             
             <span className="text-xs italic text-[#fbbf24] font-serif">

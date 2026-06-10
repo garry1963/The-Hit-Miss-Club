@@ -50,7 +50,7 @@ export default function EventsTab({
   const [courseId, setCourseId] = useState('');
   const [roundsCount, setRoundsCount] = useState(1);
   const [format, setFormat] = useState<'Stableford' | 'Stroke Play' | 'Modified Stableford'>('Stableford');
-  const [classification, setClassification] = useState<'Major' | 'Standard' | 'Alternate'>('Standard');
+  const [classification, setClassification] = useState<'Major' | 'Standard' | 'Alternate' | 'Qualifier'>('Standard');
   const [maxPlayers, setMaxPlayers] = useState(16);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'Upcoming' | 'Completed'>('Upcoming');
@@ -428,6 +428,7 @@ export default function EventsTab({
                 <option value="Standard">Standard</option>
                 <option value="Major">Major</option>
                 <option value="Alternate">Alternate</option>
+                <option value="Qualifier">Qualifier</option>
               </select>
             </div>
 
@@ -616,6 +617,10 @@ export default function EventsTab({
                         ) : ev.classification === 'Alternate' ? (
                           <span className="text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-black text-[9px]">
                             ⛳ ALTERNATE
+                          </span>
+                        ) : ev.classification === 'Qualifier' ? (
+                          <span className="text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded font-black text-[9px]">
+                            ⭐ QUALIFIER
                           </span>
                         ) : (
                           <span className="text-stone-600 bg-stone-50 border border-stone-200 px-1.5 py-0.5 rounded font-black text-[9px]">

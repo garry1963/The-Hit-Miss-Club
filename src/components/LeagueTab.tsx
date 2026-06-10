@@ -393,13 +393,30 @@ export default function LeagueTab({
           )}
 
           {isAdmin && standingMode === 'manual' && (
-            <button
-              onClick={handleOpenAddEntry}
-              className="bg-emerald-850 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Custom Entry</span>
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to clear all standings rows for the ${selectedDiv}?`)) {
+                    setManualEntries(prev => {
+                      const updated = { ...prev };
+                      delete updated[selectedDiv];
+                      return updated;
+                    });
+                    alert(`Cleared all standing rows for ${selectedDiv}.`);
+                  }
+                }}
+                className="border border-red-500 hover:bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+              >
+                <span>Clear Leaderboard</span>
+              </button>
+              <button
+                onClick={handleOpenAddEntry}
+                className="bg-emerald-850 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Custom Entry</span>
+              </button>
+            </>
           )}
         </div>
       </div>

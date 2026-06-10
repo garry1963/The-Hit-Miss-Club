@@ -202,7 +202,29 @@ export function useSocietyState() {
       snapshot.forEach((doc) => {
         const data = doc.data();
         if (data && data.key) {
-          contentMap[data.key] = data.value;
+          let val = data.value;
+          // Dynamically clean up any residual or outdated placeholder texts from the Firestore DB
+          if (
+            val === "We love the greens, the drives, and the double-bogeys. The Hit & Miss Club is a premium society of friends and golfers, playing the absolute finest links and parklands throughout the seasons." ||
+            val === "We love the greens, the drives, and the double-bogeys. The Hit & Miss Club is a premium society of friends and golfers, playing the absolute finest links and parklands throughout the seasons. Welcoming all handicaps with fair scoring, strict administration, and lively clubhouse reviews."
+          ) {
+            val = DEFAULT_SITE_CONTENT.home_hero_subtitle;
+          }
+          if (val === "Join Garry & The Caddies This Saturday!") {
+            val = DEFAULT_SITE_CONTENT.home_cta_title;
+          }
+          if (val === "We are currently accepting waitlist applications for the upcoming winter cup sequence. Perfect your chip shots and stand a chance to claim the silver plate.") {
+            val = DEFAULT_SITE_CONTENT.home_cta_body;
+          }
+          if (val && typeof val === 'string') {
+            if (val.includes("since 2021.")) {
+              val = val.replace("since 2021.", "since 2026.");
+            }
+            if (val.includes("2021")) {
+              val = val.replace(/2021/g, "2026");
+            }
+          }
+          contentMap[data.key] = val;
         }
       });
       setSiteContent(contentMap);
@@ -320,6 +342,7 @@ export function useSocietyState() {
         localStorage.removeItem(STORAGE_KEY_PREFIX + 'news');
         localStorage.removeItem(STORAGE_KEY_PREFIX + 'gallery');
         localStorage.removeItem(STORAGE_KEY_PREFIX + 'siteContent');
+        localStorage.removeItem('hit_and_miss_club_manual_entries');
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, 'resetDatabase');
       }

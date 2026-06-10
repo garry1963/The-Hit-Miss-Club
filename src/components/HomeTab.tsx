@@ -61,7 +61,7 @@ export default function HomeTab({
     if (siteContent) {
       setDraftWelcomeTitle(siteContent.home_welcome_title || "⛳ Welcome to the Society");
       setDraftHeroTitle(siteContent.home_hero_title || "The Hit & Miss Club");
-      setDraftHeroSubtitle(siteContent.home_hero_subtitle || "We love the greens, the drives, and the double-bogeys. The Hit & Miss Club is a premium society of friends and golfers, playing the absolute finest links and parklands throughout the seasons.");
+      setDraftHeroSubtitle(siteContent.home_hero_subtitle || "Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.");
       setDraftSpotlightTitle(siteContent.home_fixture_card_title || "★ Spotlight Fixture");
       setDraftCtaTitle(siteContent.home_cta_title || "Interested in Joining the Society?");
       setDraftCtaBody(siteContent.home_cta_body || "The Hit & Miss Club is always delighted to welcome prospective golfers, whether you play off single figures or are just finding your way back to 28+. Enjoy balanced tournaments, friendly reviews, and structured handicapping.");
@@ -127,7 +127,7 @@ export default function HomeTab({
           </h1>
           
           <p className="font-sans text-stone-200 text-sm sm:text-lg mb-6 leading-relaxed font-light drop-shadow-md">
-            {siteContent?.home_hero_subtitle || "We love the greens, the drives, and the double-bogeys. The Hit & Miss Club is a premium society of friends and golfers, playing the absolute finest links and parklands throughout the seasons. Welcoming all handicaps with fair scoring, strict administration, and lively clubhouse reviews."}
+            {siteContent?.home_hero_subtitle || "Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it."}
           </p>
 
           <div className="flex flex-wrap gap-4 font-sans text-xs sm:text-sm font-medium">
@@ -238,8 +238,8 @@ export default function HomeTab({
               </div>
             ) : (
               <div className="space-y-2 py-4">
-                <p className="text-stone-400 text-sm">All fixtures for the current season have been successfully completed.</p>
-                <p className="text-stone-500 text-xs">Stay tuned for the 2027 season scheduling announcements!</p>
+                <p className="text-stone-400 text-sm">No upcoming fixtures scheduled.</p>
+                <p className="text-stone-500 text-xs">Stay tuned for future tournament scheduling announcements.</p>
               </div>
             )}
           </div>
@@ -353,7 +353,7 @@ export default function HomeTab({
               onClick={() => setCurrentTab('about')}
               className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/20 transition-all duration-200 uppercase"
             >
-              Read Membership Fees
+              Join Society
             </button>
           </div>
         </div>

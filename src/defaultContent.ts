@@ -7,16 +7,16 @@ export const DEFAULT_SITE_CONTENT: Record<string, string> = {
   // Home Tab
   home_welcome_title: "⛳ Welcome to the Society",
   home_hero_title: "The Hit & Miss Club",
-  home_hero_subtitle: "Serving our community of amateur golfers since 2021. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.",
+  home_hero_subtitle: "Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.",
   home_fixture_card_title: "★ Spotlight Fixture",
-  home_cta_title: "Join Garry & The Caddies This Saturday!",
-  home_cta_body: "We are currently accepting waitlist applications for the upcoming winter cup sequence. Perfect your chip shots and stand a chance to claim the silver plate.",
+  home_cta_title: "Interested in Joining the Society?",
+  home_cta_body: "The Hit & Miss Club is always delighted to welcome prospective golfers, whether you play off single figures or are just finding your way back to 28+. Enjoy balanced tournaments, friendly reviews, and structured handicapping.",
   home_members_spots: "Only 4 Slots Left!",
   home_members_sub: "Active society membership is capped strictly at 25 individuals to ensure tee availability.",
 
   // About Tab
   about_heritage_sub: "About The Hit & Miss Club",
-  about_heritage_body: "Founded on a windy afternoon on the dunes of Dublin in 2021 by Garry Davies and a handful of golf fanatics, \"The Hit & Miss Club\" has grown into a highly regarded, friendly society. We represent the true amateur golfer—striving for the perfect drive, laughing off the stray slices, and celebrating our achievements over a proper pint.",
+  about_heritage_body: "Founded on a windy afternoon on the dunes of Dublin in 2026 by Garry Davies and a handful of golf fanatics, \"The Hit & Miss Club\" has grown into a highly regarded, friendly society. We represent the true amateur golfer—striving for the perfect drive, laughing off the stray slices, and celebrating our achievements over a proper pint.",
   about_card1_title: "Sincere Sportsmanship",
   about_card1_body: "While we celebrate competitive performance and lowest gross scores, our core pillar is high integrity. Playing by the standard R&A and USGA regulations is key, followed by immediate camaraderie in the clubhouse.",
   about_card2_title: "Fair Handicapping",

@@ -55,7 +55,7 @@ export interface Event {
   endDate: string; // End Date
   roundsCount: number; // Number of Rounds
   format: 'Stableford' | 'Stroke Play' | 'Modified Stableford'; // Tournament format dropdown selection
-  classification?: 'Major' | 'Standard' | 'Alternate';
+  classification?: 'Major' | 'Standard' | 'Alternate' | 'Qualifier';
   status: 'Upcoming' | 'Completed';
   notes?: string;
   maxPlayers?: number;
