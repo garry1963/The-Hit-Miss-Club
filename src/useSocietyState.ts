@@ -223,6 +223,9 @@ export function useSocietyState() {
           if (val === "Join Garry & The Caddies This Saturday!") {
             val = DEFAULT_SITE_CONTENT.home_cta_title;
           }
+          if (val === "Google Maps Link - Portmarnock peninsula, County Dublin") {
+            val = DEFAULT_SITE_CONTENT.contact_map_btn_sub;
+          }
           if (val === "We are currently accepting waitlist applications for the upcoming winter cup sequence. Perfect your chip shots and stand a chance to claim the silver plate.") {
             val = DEFAULT_SITE_CONTENT.home_cta_body;
           }

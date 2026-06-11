@@ -69,7 +69,7 @@ export default function ContactTab({
       setDraftMapTitle(siteContent.contact_hq_map_title || "The Swilcan Woods");
       setDraftMapBody(siteContent.contact_hq_map_body || "We gather administrative assemblies in Portmarnock, Dublin, while tee-off fixtures circulate countrywide. Look up our Approved Courses Directory to navigate individually mapped addresses for upcoming events.");
       setDraftMapBtnText(siteContent.contact_map_btn_text || "PORTMARNOCK DUBLIN HQ");
-      setDraftMapBtnSub(siteContent.contact_map_btn_sub || "Google Maps Link - Portmarnock peninsula, County Dublin");
+      setDraftMapBtnSub(siteContent.contact_map_btn_sub || "Google Maps Link - Llandudno, Conwy Wales");
     }
   }, [siteContent]);
 
@@ -337,7 +337,7 @@ export default function ContactTab({
                 {siteContent?.contact_map_btn_text || "PORTMARNOCK DUBLIN HQ"}
               </h4>
               <p className="text-stone-400 text-[10px]">
-                {siteContent?.contact_map_btn_sub || "Google Maps Link - Portmarnock peninsula, County Dublin"}
+                {siteContent?.contact_map_btn_sub || "Google Maps Link - Llandudno, Conwy Wales"}
               </p>
             </div>
           </div>

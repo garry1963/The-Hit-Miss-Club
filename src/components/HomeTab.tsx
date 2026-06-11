@@ -155,7 +155,7 @@ export default function HomeTab({
           <div className="space-y-1 text-left">
             <span className="text-stone-400 text-xs font-mono tracking-wider uppercase block">Reg. Members</span>
             <span className="text-3xl font-display font-bold text-stone-900 font-mono">{members.length} Players</span>
-            <p className="text-stone-500 text-xs font-normal">Seniors, Juniors & Scratch team</p>
+            <p className="text-stone-500 text-xs font-normal">Premier, Championship & Club</p>
           </div>
           <div className="p-4 bg-emerald-50 rounded-xl text-emerald-800">
             <Users className="w-6 h-6" />

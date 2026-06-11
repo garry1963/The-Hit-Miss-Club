@@ -50,7 +50,7 @@ export const DEFAULT_SITE_CONTENT: Record<string, string> = {
   contact_hq_map_title: "The Swilcan Woods",
   contact_hq_map_body: "We gather administrative assemblies in Portmarnock, Dublin, while tee-off fixtures circulate countrywide. Look up our Approved Courses Directory to navigate individually mapped addresses for upcoming events.",
   contact_map_btn_text: "PORTMARNOCK DUBLIN HQ",
-  contact_map_btn_sub: "Google Maps Link - Portmarnock peninsula, County Dublin",
+  contact_map_btn_sub: "Google Maps Link - Llandudno, Conwy Wales",
 
   // League Tab
   league_rule_text: "Ties in standings points are settled dynamically by descending wins count, then highest average points output, followed by the lower initial player handicap tier.",
