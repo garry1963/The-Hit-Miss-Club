@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight } from 'lucide-react';
-import { Event, NewsArticle, Member, StandingsRow } from '../types';
+import { Event, NewsArticle, Member, StandingsRow, Division } from '../types';
 
 interface HomeTabProps {
   setCurrentTab: (tab: string) => void;
@@ -17,6 +17,7 @@ interface HomeTabProps {
   isAdmin: boolean;
   siteContent: Record<string, string>;
   updateSiteContent: (key: string, val: string) => void;
+  divisions: Division[];
 }
 
 export default function HomeTab({
@@ -28,7 +29,8 @@ export default function HomeTab({
   courses,
   isAdmin,
   siteContent,
-  updateSiteContent
+  updateSiteContent,
+  divisions
 }: HomeTabProps) {
   // Find closest upcoming event
   const upcomingEvents = events
@@ -40,8 +42,41 @@ export default function HomeTab({
     ? courses.find(c => c.id === spotlightEvent.courseId)
     : null;
 
-  // Standings leader
-  const leaderRow = standings.find(s => s.ranking === 1);
+  // Resolve all unique divisions active or configured
+  const allDivisions = React.useMemo(() => {
+    const divNames = new Set<string>();
+    // Start with default/configured divisions
+    divNames.add('Premier Division');
+    divNames.add('Championship Division');
+    if (divisions) {
+      divisions.forEach(d => {
+        if (d.name) divNames.add(d.name);
+      });
+    }
+    // Fallback: search members in case of other legacy names
+    members.forEach(m => {
+      if (m.division) divNames.add(m.division);
+    });
+    return Array.from(divNames);
+  }, [divisions, members]);
+
+  // Standings leader per division
+  const getLeaderForDivision = (divName: string) => {
+    const list = standings.filter(row => {
+      const member = members.find(m => m.id === row.playerId);
+      const mDiv = member?.division || 'Premier Division';
+      return mDiv === divName;
+    });
+    // Sort logic exactly matches useSocietyState standings calculation:
+    // sorting by totalPoints descending, wins descending, eventsPlayed descending, handicap ascending
+    list.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.eventsPlayed !== a.eventsPlayed) return b.eventsPlayed - a.eventsPlayed;
+      return a.handicap - b.handicap;
+    });
+    return list[0] || null;
+  };
 
   // Featured news
   const mainNews = news.find(n => n.isFeatured) || news[0];
@@ -165,19 +200,35 @@ export default function HomeTab({
         {/* Metric 2: Season Leader */}
         <div 
           onClick={() => setCurrentTab('league')}
-          className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-[#fbbf24] flex items-center justify-between cursor-pointer hover:border-amber-450 transition-all text-left"
+          className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-[#fbbf24] flex flex-col justify-between cursor-pointer hover:border-amber-500 transition-all text-left"
         >
-          <div className="space-y-1">
-            <span className="text-stone-400 text-xs font-mono tracking-wider uppercase block">Standings Leader</span>
-            <span className="text-2xl font-display font-bold text-stone-900">
-              {leaderRow ? leaderRow.playerName : 'No games'}
-            </span>
-            <p className="text-amber-600 text-xs font-bold font-mono">
-              ★ {leaderRow ? `${leaderRow.totalPoints} PTS (${leaderRow.wins} Wins)` : 'Pending Results'}
-            </p>
-          </div>
-          <div className="p-4 bg-amber-50 rounded-xl text-amber-600">
-            <Trophy className="w-6 h-6" />
+          <div className="w-full space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-stone-400 text-xs font-mono tracking-wider uppercase block">Standings Leaders</span>
+              <Trophy className="w-5 h-5 text-amber-500 shrink-0" />
+            </div>
+            
+            <div className="space-y-2.5">
+              {allDivisions.map((divName) => {
+                const leader = getLeaderForDivision(divName);
+                const shortDivName = divName.replace(' Division', '');
+                return (
+                  <div key={divName} className="flex items-center justify-between gap-2 border-b border-stone-50 pb-2 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="font-display font-bold text-stone-900 text-sm truncate">
+                        {leader ? leader.playerName : 'Pending...'}
+                      </span>
+                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-100 text-[9px] font-mono px-1.5 py-0.5 rounded font-bold whitespace-nowrap shrink-0">
+                        {shortDivName}
+                      </span>
+                    </div>
+                    <span className="text-amber-600 text-[10px] sm:text-xs font-extrabold font-mono whitespace-nowrap shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-md">
+                      {leader ? `${leader.totalPoints} PTS` : '0 PTS'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

@@ -37,6 +37,7 @@ export default function App() {
             isAdmin={state.isAdmin}
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
+            divisions={state.divisions}
           />
         );
       case 'about':
@@ -174,6 +175,7 @@ export default function App() {
             isAdmin={state.isAdmin}
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
+            divisions={state.divisions}
           />
         );
     }
