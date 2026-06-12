@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff, Facebook, MessageSquare, Youtube, Mail, Phone, MapPin, Users, Globe } from 'lucide-react';
 import { NewsArticle, Member, Event, TournamentResult, GalleryImage, Season } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface AdminPanelTabProps {
   news: NewsArticle[];
@@ -585,7 +586,7 @@ export default function AdminPanelTab({
             <tbody className="divide-y divide-stone-250 text-stone-800">
               {news.map((item) => (
                 <tr key={item.id} className="hover:bg-stone-50/50">
-                  <td className="py-3.5 px-4 font-mono font-medium text-stone-500 whitespace-nowrap">{item.date}</td>
+                  <td className="py-3.5 px-4 font-mono font-medium text-stone-500 whitespace-nowrap">{formatAppDate(item.date)}</td>
                   <td className="py-3.5 px-4 font-semibold text-stone-900 max-w-xs truncate">{item.title}</td>
                   <td className="py-3.5 px-4">
                     <span className="bg-stone-100 hover:bg-stone-200 text-stone-700 px-2.5 py-0.5 rounded font-mono text-[10px] uppercase font-bold">

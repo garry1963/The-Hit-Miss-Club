@@ -6,6 +6,7 @@
 import React from 'react';
 import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight } from 'lucide-react';
 import { Event, NewsArticle, Member, StandingsRow, Division } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface HomeTabProps {
   setCurrentTab: (tab: string) => void;
@@ -18,6 +19,8 @@ interface HomeTabProps {
   siteContent: Record<string, string>;
   updateSiteContent: (key: string, val: string) => void;
   divisions: Division[];
+  addEvent: (e: Omit<Event, 'id'>) => Promise<any>;
+  activeSeasonId: string;
 }
 
 export default function HomeTab({
@@ -30,7 +33,9 @@ export default function HomeTab({
   isAdmin,
   siteContent,
   updateSiteContent,
-  divisions
+  divisions,
+  addEvent,
+  activeSeasonId
 }: HomeTabProps) {
   // Find closest upcoming event
   const upcomingEvents = events
@@ -91,6 +96,82 @@ export default function HomeTab({
   const [draftCtaTitle, setDraftCtaTitle] = React.useState('');
   const [draftCtaBody, setDraftCtaBody] = React.useState('');
 
+  // Scheduler Tool states
+  const [showScheduleModal, setShowScheduleModal] = React.useState(false);
+  const [isPublishingSchedule, setIsPublishingSchedule] = React.useState(false);
+  const [scheduleError, setScheduleError] = React.useState('');
+  const [scheduleSuccessMsg, setScheduleSuccessMsg] = React.useState('');
+  const [scheduleRows, setScheduleRows] = React.useState<Array<{
+    name: string;
+    type: 'Qualifier' | 'Standard' | 'Major';
+    startDate: string;
+    endDate: string;
+    courseId: string;
+    notes: string;
+  }>>([]);
+
+  const addScheduleRow = () => {
+    const initialCourseId = courses && courses.length > 0 ? courses[0].id : '';
+    setScheduleRows([
+      ...scheduleRows,
+      { name: '', type: 'Standard', startDate: '', endDate: '', courseId: initialCourseId, notes: '' }
+    ]);
+  };
+
+  const removeScheduleRow = (idx: number) => {
+    setScheduleRows(scheduleRows.filter((_, i) => i !== idx));
+  };
+
+  const handlePublishSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setScheduleError('');
+    setScheduleSuccessMsg('');
+
+    if (scheduleRows.length === 0) {
+      setScheduleError('Please add at least one tournament event row.');
+      return;
+    }
+
+    const invalidRow = scheduleRows.find(
+      (r) => !r.name.trim() || !r.startDate || !r.courseId
+    );
+    if (invalidRow) {
+      setScheduleError('Please fill in Name, Start Date, and Course for all scheduled tournament rows.');
+      return;
+    }
+
+    setIsPublishingSchedule(true);
+    try {
+      for (const row of scheduleRows) {
+        const payload = {
+          seasonId: activeSeasonId,
+          title: row.name.trim(),
+          courseId: row.courseId,
+          date: row.startDate,
+          endDate: row.endDate || row.startDate,
+          roundsCount: 1,
+          format: 'Stableford' as const,
+          classification: row.type,
+          status: 'Upcoming' as const,
+          notes: row.notes.trim() || '',
+          time: '09:00 AM'
+        };
+        await addEvent(payload);
+      }
+      setScheduleSuccessMsg(`${scheduleRows.length} tournament events successfully published to the club calendar!`);
+      setTimeout(() => {
+        setShowScheduleModal(false);
+        setScheduleSuccessMsg('');
+        setScheduleRows([]);
+      }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setScheduleError(err?.message || 'Underlying database write error. Confirm you are authenticated as active administrator.');
+    } finally {
+      setIsPublishingSchedule(false);
+    }
+  };
+
   // Sync draft states when siteContent loads
   React.useEffect(() => {
     if (siteContent) {
@@ -116,6 +197,38 @@ export default function HomeTab({
 
   return (
     <div className="space-y-12 pb-12 animate-fadeIn">
+
+      {/* Home Screen Header Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/95 border border-stone-200 p-6 rounded-2xl shadow-sm text-left">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-display font-black text-stone-900 uppercase tracking-tight flex items-center gap-2">
+            <span className="text-emerald-700">⛳</span> Club House Hub
+          </h2>
+          <p className="text-xs text-stone-500">
+            {isAdmin 
+              ? "Configure league fixtures, manage handicaps, and deploy real-time tournament schedules." 
+              : "Explore current league fixtures, check handicaps, and view real-time tournament schedules."}
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            if (isAdmin) {
+              const initialCourseId = courses && courses.length > 0 ? courses[0].id : '';
+              setScheduleRows([
+                { name: 'Spring Cup Opening', type: 'Standard', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], courseId: initialCourseId, notes: 'Opening event selection' },
+                { name: 'Midsummer Showcase', type: 'Major', startDate: '', endDate: '', courseId: initialCourseId, notes: 'Society summer showcase' }
+              ]);
+            }
+            setScheduleError('');
+            setScheduleSuccessMsg('');
+            setShowScheduleModal(true);
+          }}
+          className="bg-[#064e3b] hover:bg-[#022c22] text-[#fbbf24] font-bold text-xs uppercase px-5 py-3 rounded-xl border border-emerald-950/20 shadow-md flex items-center gap-2 transition"
+        >
+          <Calendar className="w-4 h-4 shrink-0 text-[#fbbf24]" />
+          <span>{isAdmin ? "Tournament Schedule Tool" : "View Tournament Schedule"}</span>
+        </button>
+      </div>
 
       {/* Editor Trigger for admin */}
       {isAdmin && (
@@ -273,7 +386,7 @@ export default function HomeTab({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[#fbbf24] font-mono text-xs w-16 uppercase">Date:</span>
-                    <span>{new Date(spotlightEvent.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    <span>{formatAppDate(spotlightEvent.date)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[#fbbf24] font-mono text-xs w-16 uppercase">Tee Time:</span>
@@ -513,6 +626,263 @@ export default function HomeTab({
                   Save Changes
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white text-stone-900 rounded-3xl border-2 border-emerald-800 shadow-2xl p-6 sm:p-8 max-w-6xl w-full max-h-[90vh] overflow-y-auto space-y-6 text-left relative">
+            <button 
+              onClick={() => setShowScheduleModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
+              type="button"
+            >
+              ✕
+            </button>
+
+            <div className="border-b border-stone-200 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-display font-black text-xl uppercase tracking-tight text-[#064e3b]">
+                  {isAdmin ? "🗓️ Quick Tournament Scheduler" : "🗓️ View Club Tournament Schedule"}
+                </h3>
+                <p className="text-xs text-stone-500">
+                  {isAdmin 
+                    ? "Compile multiple event fixtures at once using this simple table editor. Add rows, adjust details, and deploy." 
+                    : "Explore officially scheduled tournament fixtures, event classifications, and hosting venues."}
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={addScheduleRow}
+                  className="bg-[#064e3b]/5 hover:bg-[#064e3b]/10 text-[#064e3b] font-bold text-xs uppercase px-4 py-2 rounded-lg border border-emerald-850/20 transition self-start sm:self-center"
+                >
+                  + Add Tournament Row
+                </button>
+              )}
+            </div>
+
+            {isAdmin && scheduleError && (
+              <div className="text-xs text-red-650 bg-red-50 p-3 rounded-xl border border-red-100 font-medium animate-pulse">
+                ⚠️ {scheduleError}
+              </div>
+            )}
+
+            {isAdmin && scheduleSuccessMsg && (
+              <div className="text-xs text-emerald-800 bg-emerald-50 p-3 rounded-xl border border-emerald-250 font-bold shrink-0">
+                ✓ {scheduleSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={handlePublishSchedule} className="space-y-6">
+              <div className="overflow-x-auto border border-stone-200 rounded-xl shadow-inner bg-stone-50">
+                <table className="w-full text-left border-collapse font-sans text-xs">
+                  <thead>
+                    <tr className="bg-stone-100 border-b border-stone-200 text-stone-600 font-bold uppercase tracking-wider">
+                      <th className="p-3">Event Name</th>
+                      <th className="p-3 w-32">Event Type</th>
+                      <th className="p-3 w-36">Start Date</th>
+                      <th className="p-3 w-36">End Date</th>
+                      <th className="p-3 w-48">Course</th>
+                      <th className="p-3 min-w-[120px]">Notes</th>
+                      {isAdmin && <th className="p-3 w-12 text-center"></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!isAdmin ? (
+                      events.filter(e => !activeSeasonId || e.seasonId === activeSeasonId).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-stone-400 italic">
+                            No tournament events have been officially scheduled for this campaign yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        events
+                          .filter(e => !activeSeasonId || e.seasonId === activeSeasonId)
+                          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                          .map((ev) => {
+                            const course = courses.find(c => c.id === ev.courseId);
+                            let typeBadgeStyle = "bg-stone-100 text-stone-800 border-stone-200";
+                            if (ev.classification === "Major") {
+                              typeBadgeStyle = "bg-amber-50 text-amber-800 border-amber-250/30";
+                            } else if (ev.classification === "Qualifier") {
+                              typeBadgeStyle = "bg-indigo-50 text-indigo-805 border-indigo-250/30";
+                            } else if (ev.classification === "Standard") {
+                              typeBadgeStyle = "bg-emerald-50 text-emerald-800 border-emerald-200";
+                            }
+                            return (
+                              <tr key={ev.id} className="border-b border-stone-150 last:border-0 hover:bg-stone-55 bg-white">
+                                <td className="p-3 font-semibold text-stone-900">{ev.title}</td>
+                                <td className="p-3">
+                                  <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border ${typeBadgeStyle}`}>
+                                    {ev.classification || 'Standard'}
+                                  </span>
+                                </td>
+                                <td className="p-3 font-mono text-stone-500">{formatAppDate(ev.date)}</td>
+                                <td className="p-3 font-mono text-stone-500">{formatAppDate(ev.endDate || ev.date)}</td>
+                                <td className="p-3 font-medium text-stone-800">
+                                  {course ? `${course.name} (${course.location})` : 'TBD Golf Course'}
+                                </td>
+                                <td className="p-3 text-stone-605 italic">{ev.notes || 'No custom notes provided.'}</td>
+                              </tr>
+                            );
+                          })
+                      )
+                    ) : (
+                      scheduleRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-stone-400 italic">
+                            No tournament events added yet. Click "+ Add Tournament Row" above to begin.
+                          </td>
+                        </tr>
+                      ) : (
+                        scheduleRows.map((row, index) => (
+                          <tr key={index} className="border-b border-stone-150 last:border-0 hover:bg-stone-50/50 bg-white">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Autumn Stableford Cup"
+                                value={row.name}
+                                onChange={(e) => {
+                                  const draft = [...scheduleRows];
+                                  draft[index].name = e.target.value;
+                                  setScheduleRows(draft);
+                                }}
+                                className="w-full p-2 bg-white border border-stone-200 rounded focus:border-[#064e3b] focus:ring-1 focus:ring-[#064e3b] text-xs font-semibold text-stone-900 focus:outline-none"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <select
+                                value={row.type}
+                                onChange={(e) => {
+                                  const draft = [...scheduleRows];
+                                  draft[index].type = e.target.value as any;
+                                  setScheduleRows(draft);
+                                }}
+                                className="w-full p-2 bg-white border border-stone-200 rounded focus:border-[#064e3b] text-xs font-medium focus:ring-1 focus:ring-[#064e3b] text-stone-850 focus:outline-none"
+                              >
+                                <option value="Standard">Standard</option>
+                                <option value="Major">Major</option>
+                                <option value="Qualifier">Qualifier</option>
+                              </select>
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="date"
+                                required
+                                value={row.startDate}
+                                onChange={(e) => {
+                                  const draft = [...scheduleRows];
+                                  draft[index].startDate = e.target.value;
+                                  if (!draft[index].endDate || draft[index].endDate < e.target.value) {
+                                    draft[index].endDate = e.target.value;
+                                  }
+                                  setScheduleRows(draft);
+                                }}
+                                className="w-full p-2 bg-white border border-stone-200 rounded focus:border-[#064e3b] focus:ring-1 focus:ring-[#064e3b] text-xs font-mono focus:outline-none"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="date"
+                                value={row.endDate}
+                                onChange={(e) => {
+                                  const draft = [...scheduleRows];
+                                  draft[index].endDate = e.target.value;
+                                  setScheduleRows(draft);
+                                }}
+                                className="w-full p-2 bg-white border border-stone-200 rounded focus:border-[#064e3b] focus:ring-1 focus:ring-[#064e3b] text-xs font-mono focus:outline-none"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <select
+                                value={row.courseId}
+                                required
+                                onChange={(e) => {
+                                  const draft = [...scheduleRows];
+                                  draft[index].courseId = e.target.value;
+                                  setScheduleRows(draft);
+                                }}
+                                className="w-full p-2 bg-white border border-stone-200 rounded focus:border-[#064e3b] focus:ring-1 focus:ring-[#064e3b] text-xs focus:outline-none"
+                              >
+                                <option value="">-- Choose Golf Course --</option>
+                                {courses && courses.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name} ({c.location})
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                placeholder="e.g. Tee off at 9am, max handicap limit 28"
+                                value={row.notes}
+                                onChange={(e) => {
+                                  const draft = [...scheduleRows];
+                                  draft[index].notes = e.target.value;
+                                  setScheduleRows(draft);
+                                }}
+                                className="w-full p-2 bg-white border border-stone-200 rounded focus:border-[#064e3b] focus:ring-1 focus:ring-[#064e3b] text-xs text-stone-700 focus:outline-none"
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeScheduleRow(index)}
+                                className="p-1 px-2.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition font-bold"
+                                title="Delete Row"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {isAdmin ? (
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-stone-150">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowScheduleModal(false);
+                      setScheduleRows([]);
+                    }}
+                    className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold uppercase py-3 px-4 rounded-xl text-xs tracking-wider border border-stone-200 transition focus:outline-none"
+                    disabled={isPublishingSchedule}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full bg-[#064e3b] disabled:bg-stone-300 disabled:text-stone-500 hover:bg-[#022c22] text-[#fbbf24] font-bold uppercase py-3 px-4 rounded-xl text-xs tracking-wider transition shadow-md flex items-center justify-center gap-2 focus:outline-none"
+                    disabled={isPublishingSchedule || scheduleRows.length === 0}
+                  >
+                    {isPublishingSchedule ? (
+                      <span>Publishing Schedule...</span>
+                    ) : (
+                      <span>Publish Schedule</span>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex justify-end pt-3 border-t border-stone-150">
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(false)}
+                    className="bg-[#064e3b] hover:bg-[#022c22] text-[#fbbf24] font-bold uppercase py-3 px-6 rounded-xl text-xs tracking-wider transition shadow-md focus:outline-none"
+                  >
+                    Close Schedule
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>

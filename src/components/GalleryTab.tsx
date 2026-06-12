@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Image, Plus, Trash2, X, ChevronLeft, ChevronRight, Filter, ZoomIn } from 'lucide-react';
 import { GalleryImage } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface GalleryTabProps {
   gallery: GalleryImage[];
@@ -255,7 +256,7 @@ export default function GalleryTab({
                   <p className="text-stone-800 font-sans text-xs font-semibold leading-relaxed line-clamp-2">
                     {img.caption}
                   </p>
-                  <span className="text-[10px] text-stone-400 font-mono block">Captured {img.date}</span>
+                  <span className="text-[10px] text-stone-400 font-mono block">Captured {formatAppDate(img.date)}</span>
                 </div>
 
                 {isAdmin && (
@@ -338,7 +339,7 @@ export default function GalleryTab({
             <p className="text-stone-200 text-sm sm:text-base font-sans font-medium">
               {filteredGallery[lightboxIndex].caption}
             </p>
-            <span className="text-[11px] text-stone-500 font-mono block mt-1">Uploaded on {filteredGallery[lightboxIndex].date}</span>
+            <span className="text-[11px] text-stone-500 font-mono block mt-1">Uploaded on {formatAppDate(filteredGallery[lightboxIndex].date)}</span>
           </div>
 
         </div>

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Users, Plus, Search, Mail, Edit, Trash2, Trophy, Download, Upload, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
 import { Member, TournamentResult, Event, Season, Division } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface MembersTabProps {
   members: Member[];
@@ -670,7 +671,7 @@ export default function MembersTab({
 
                         {/* Member since date */}
                         <td className="py-3.5 px-4 text-center font-mono text-xs text-stone-450">
-                          {m.joinedDate}
+                          {formatAppDate(m.joinedDate)}
                         </td>
 
                         {/* Admin Action tools */}

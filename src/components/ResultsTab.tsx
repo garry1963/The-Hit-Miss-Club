@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Award, Plus, Trash2, Search, Filter, ShieldAlert, Download, Save, RefreshCw } from 'lucide-react';
 import { Event, TournamentResult, Member, GolfCourse } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface ResultsTabProps {
   events: Event[];
@@ -250,7 +251,7 @@ export default function ResultsTab({
               >
                 {completedEvents.map((evt) => (
                   <option key={evt.id} value={evt.id}>
-                    🏆 {evt.title} ({evt.date})
+                    🏆 {evt.title} ({formatAppDate(evt.date)})
                   </option>
                 ))}
               </select>
@@ -306,7 +307,7 @@ export default function ResultsTab({
 
               <div className="bg-stone-900/60 border border-emerald-800 rounded-xl px-4 py-3 text-right">
                 <span className="text-[9px] text-stone-400 block uppercase font-mono">Tournament Date</span>
-                <span className="text-sm font-bold text-yellow-400 font-mono">{activeEvent.date}</span>
+                <span className="text-sm font-bold text-yellow-400 font-mono">{formatAppDate(activeEvent.date)}</span>
               </div>
             </div>
           )}

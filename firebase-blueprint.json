@@ -75,7 +75,7 @@
         "endDate": { "type": "string" },
         "roundsCount": { "type": "number" },
         "format": { "type": "string", "enum": ["Stableford", "Stroke Play", "Modified Stableford"] },
-        "classification": { "type": "string", "enum": ["Major", "Standard", "Alternate"] },
+        "classification": { "type": "string", "enum": ["Major", "Standard", "Alternate", "Qualifier"] },
         "status": { "type": "string", "enum": ["Upcoming", "Completed"] },
         "notes": { "type": "string" },
         "maxPlayers": { "type": "number" },

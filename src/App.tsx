@@ -38,6 +38,8 @@ export default function App() {
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
             divisions={state.divisions}
+            addEvent={state.addEvent}
+            activeSeasonId={state.activeSeasonId}
           />
         );
       case 'about':
@@ -176,6 +178,8 @@ export default function App() {
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
             divisions={state.divisions}
+            addEvent={state.addEvent}
+            activeSeasonId={state.activeSeasonId}
           />
         );
     }

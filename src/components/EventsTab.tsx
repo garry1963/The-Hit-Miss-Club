@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy } from 'lucide-react';
 import { Event, GolfCourse, Season } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface EventsTabProps {
   events: Event[];
@@ -647,7 +648,7 @@ export default function EventsTab({
                   <div className="grid grid-cols-2 gap-3 text-xs text-stone-650 font-medium">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                      <span>{ev.date} {ev.endDate && ev.endDate !== ev.date ? `to ${ev.endDate}` : ''}</span>
+                      <span>{formatAppDate(ev.date)} {ev.endDate && ev.endDate !== ev.date ? `to ${formatAppDate(ev.endDate)}` : ''}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-stone-400" />
