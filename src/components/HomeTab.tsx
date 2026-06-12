@@ -87,6 +87,8 @@ export default function HomeTab({
   const mainNews = news.find(n => n.isFeatured) || news[0];
   const secondaryNews = news.filter(n => n.id !== mainNews?.id).slice(0, 2);
 
+  const [selectedNews, setSelectedNews] = React.useState<NewsArticle | null>(null);
+
   // State for editor
   const [isEditingTexts, setIsEditingTexts] = React.useState(false);
   const [draftWelcomeTitle, setDraftWelcomeTitle] = React.useState('');
@@ -436,12 +438,15 @@ export default function HomeTab({
 
             {/* Main Featured Article */}
             {mainNews && (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              <div 
+                onClick={() => setSelectedNews(mainNews)}
+                className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center cursor-pointer group hover:bg-stone-50/50 p-4 rounded-2xl transition"
+              >
                 <div className="md:col-span-5 h-44 overflow-hidden rounded-xl border border-stone-200 shadow-inner">
                   <img 
                     src={mainNews.image} 
                     alt={mainNews.title} 
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "https://picsum.photos/seed/golfnews/600/400";
@@ -452,13 +457,16 @@ export default function HomeTab({
                   <span className="inline-block bg-teal-50 border border-teal-200 text-teal-800 text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase">
                     {mainNews.category}
                   </span>
-                  <span className="text-stone-400 text-xs block font-mono">Published {mainNews.date}</span>
-                  <h3 className="font-display font-bold text-lg text-stone-900 hover:text-emerald-800 transition-colors cursor-pointer leading-tight">
+                  <span className="text-stone-400 text-xs block font-mono">Published {formatAppDate(mainNews.date)}</span>
+                  <h3 className="font-display font-bold text-lg text-stone-900 group-hover:text-emerald-800 transition-colors leading-tight">
                     {mainNews.title}
                   </h3>
                   <p className="text-stone-600 text-sm leading-relaxed line-clamp-2">
                     {mainNews.summary}
                   </p>
+                  <span className="text-xs text-emerald-800 font-bold group-hover:underline flex items-center gap-1 font-mono">
+                    Read Announcement &rarr;
+                  </span>
                 </div>
               </div>
             )}
@@ -467,17 +475,24 @@ export default function HomeTab({
             {secondaryNews.length > 0 && (
               <div className="pt-6 border-t border-stone-100 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {secondaryNews.map(item => (
-                  <div key={item.id} className="p-3 hover:bg-stone-50 rounded-xl transition-all border border-transparent hover:border-stone-100 space-y-1.5 text-left">
+                  <div 
+                    key={item.id} 
+                    onClick={() => setSelectedNews(item)}
+                    className="p-3 hover:bg-stone-50 rounded-xl transition-all border border-transparent hover:border-stone-100 space-y-1.5 text-left cursor-pointer group"
+                  >
                     <span className="bg-yellow-50 border border-yellow-250 text-amber-800 text-[9px] font-mono px-2 py-0.5 rounded font-medium uppercase">
                       {item.category}
                     </span>
-                    <span className="text-stone-400 text-[10px] block font-mono">{item.date}</span>
-                    <h4 className="font-display font-bold text-sm text-stone-900 leading-snug">
+                    <span className="text-stone-400 text-[10px] block font-mono">{formatAppDate(item.date)}</span>
+                    <h4 className="font-display font-bold text-sm text-stone-900 leading-snug group-hover:text-emerald-800 transition-colors">
                       {item.title}
                     </h4>
                     <p className="text-stone-550 text-xs line-clamp-2">
                       {item.summary}
                     </p>
+                    <span className="text-[10px] text-emerald-800 font-bold group-hover:underline flex items-center gap-0.5 font-mono pt-1">
+                      Read announcement &rarr;
+                    </span>
                   </div>
                 ))}
               </div>
@@ -884,6 +899,80 @@ export default function HomeTab({
                 </div>
               )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Selected Announcement Reader Modal */}
+      {selectedNews && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white text-stone-900 rounded-3xl border border-stone-200 shadow-2xl p-6 sm:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-6 text-left relative font-sans">
+            <button 
+              onClick={() => setSelectedNews(null)}
+              className="absolute top-4 right-4 p-2 rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
+              type="button"
+              aria-label="Close Announcement"
+            >
+              ✕
+            </button>
+
+            {/* Banner Category & Date Header */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+              <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded uppercase">
+                {selectedNews.category}
+              </span>
+              <span className="text-stone-400">
+                Published {formatAppDate(selectedNews.date)}
+              </span>
+              {selectedNews.author && (
+                <span className="text-stone-500">
+                  by {selectedNews.author}
+                </span>
+              )}
+            </div>
+
+            {/* Title */}
+            <h3 className="font-display font-black text-2xl text-stone-900 leading-tight border-b border-stone-100 pb-3">
+              {selectedNews.title}
+            </h3>
+
+            {/* Image Banner */}
+            {selectedNews.image && (
+              <div className="h-64 sm:h-72 w-full overflow-hidden rounded-2xl border border-stone-200 shadow-inner select-none">
+                <img
+                  src={selectedNews.image}
+                  alt={selectedNews.title}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://picsum.photos/seed/golfnews/800/600";
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Summary Block */}
+            {selectedNews.summary && (
+              <p className="text-stone-550 italic bg-stone-50 p-4 border-l-4 border-[#fbbf24] rounded-r-xl leading-relaxed text-sm">
+                "{selectedNews.summary}"
+              </p>
+            )}
+
+            {/* Full Length Content Body */}
+            <div className="space-y-4 text-stone-800 text-sm leading-relaxed whitespace-pre-wrap">
+              {selectedNews.content || "No extended text contents registered for this bulletin."}
+            </div>
+
+            {/* Close Button Action */}
+            <div className="pt-4 border-t border-stone-150 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedNews(null)}
+                className="bg-[#064e3b] hover:bg-[#022c22] text-[#fbbf24] font-bold uppercase py-2.5 px-6 rounded-xl text-xs tracking-wider transition shadow-md focus:outline-none"
+              >
+                Close Bulletin
+              </button>
+            </div>
           </div>
         </div>
       )}
