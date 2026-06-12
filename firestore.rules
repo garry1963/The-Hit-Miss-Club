@@ -71,7 +71,8 @@ service cloud.firestore {
 
     function isValidGalleryImage(g) {
       return g.id is string && g.imageUrl is string && g.caption is string
-        && g.category is string && g.date is string;
+        && g.category is string && g.date is string
+        && (!g.keys().hasAny(['approved']) || g.approved is bool);
     }
 
     function isValidSiteContent(sc) {

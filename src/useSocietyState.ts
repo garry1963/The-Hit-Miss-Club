@@ -562,8 +562,20 @@ export function useSocietyState() {
     return newImg;
   };
 
+  const approveGalleryImage = async (id: string) => {
+    try {
+      const img = gallery.find(g => g.id === id);
+      if (img) {
+        const updated = { ...img, approved: true };
+        await setDoc(doc(db, 'gallery', id), updated);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `gallery/${id}`);
+    }
+  };
+
   const deleteGalleryImage = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this image from the gallery?')) {
+    if (window.confirm('Are you sure you want to delete this image?')) {
       try {
         await deleteDoc(doc(db, 'gallery', id));
       } catch (err) {
@@ -761,6 +773,7 @@ export function useSocietyState() {
     updateNews,
     deleteNews,
     addGalleryImage,
+    approveGalleryImage,
     deleteGalleryImage,
     addSeason,
     toggleSeasonActive,

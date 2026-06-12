@@ -130,6 +130,7 @@ export default function App() {
             isAdmin={state.isAdmin}
             addGalleryImage={state.addGalleryImage}
             deleteGalleryImage={state.deleteGalleryImage}
+            approveGalleryImage={state.approveGalleryImage}
           />
         );
       case 'contact':

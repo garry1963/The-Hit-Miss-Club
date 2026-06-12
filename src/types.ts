@@ -102,4 +102,5 @@ export interface GalleryImage {
   caption: string;
   category: 'Tournaments' | 'Courses' | 'Social' | 'Trophy';
   date: string;
+  approved?: boolean;
 }

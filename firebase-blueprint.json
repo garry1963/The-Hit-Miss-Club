@@ -125,7 +125,8 @@
         "imageUrl": { "type": "string" },
         "caption": { "type": "string" },
         "category": { "type": "string", "enum": ["Tournaments", "Courses", "Social", "Trophy"] },
-        "date": { "type": "string" }
+        "date": { "type": "string" },
+        "approved": { "type": "boolean" }
       },
       "required": ["id", "imageUrl", "caption", "category", "date"]
     },
