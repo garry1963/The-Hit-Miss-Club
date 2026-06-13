@@ -352,93 +352,102 @@ export default function CoursesTab({
         })}
       </div>
 
-      {/* 4. Single Course detailed popup screen overlay */}
+      {/* 4. Single Course detailed popup screen overlay in a high-contrast, backdrop-blurred modal */}
       {activeCourse && (
-        <section className="bg-stone-900 text-stone-100 rounded-2xl p-6 sm:p-8 space-y-6 mt-8 border border-[#fbbf24]/40 shadow-xl relative overflow-hidden animate-fadeIn">
-          
-          <div className="flex justify-between items-start border-b border-stone-800 pb-3">
-            <div className="space-y-1">
-              <span className="text-[10px] font-mono text-[#fbbf24] uppercase tracking-widest block">APPROVED COURSE PROFILE</span>
-              <h2 className="font-display font-medium text-stone-200 text-xl sm:text-2xl uppercase font-bold inline-flex items-center gap-2">
-                <span>{activeCourse.name}</span>
-                <Sparkles className="w-4 h-4 text-[#fbbf24] animate-pulse" />
-              </h2>
-              <p className="text-xs text-stone-400">📍 {activeCourse.location}</p>
-            </div>
-
-            <button
-              onClick={() => setSelectedCourseId(null)}
-              className="text-stone-400 hover:text-white font-mono text-xs hover:underline"
-            >
-              Close Directory view ✕
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-sm leading-relaxed">
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-stone-950/85 backdrop-blur-md animate-fadeIn"
+          onClick={() => setSelectedCourseId(null)}
+          id="course-detailed-modal"
+        >
+          <div 
+            className="bg-stone-900 text-stone-100 rounded-3xl border-2 border-[#fbbf24]/50 shadow-2xl p-6 sm:p-8 space-y-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto relative overflow-hidden text-left font-sans animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
             
-            <div className="lg:col-span-8 space-y-4 font-sans">
+            <div className="flex justify-between items-start border-b border-stone-800 pb-3">
               <div className="space-y-1">
-                <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest block">Course Highlights & Bio</span>
-                <p className="text-stone-300 text-xs sm:text-sm">
-                  {activeCourse.description}
-                </p>
+                <span className="text-[10px] font-mono text-[#fbbf24] uppercase tracking-widest block">APPROVED COURSE PROFILE</span>
+                <h2 className="font-display font-medium text-stone-200 text-xl sm:text-2xl uppercase font-bold inline-flex items-center gap-2">
+                  <span>{activeCourse.name}</span>
+                  <Sparkles className="w-4 h-4 text-[#fbbf24] animate-pulse" />
+                </h2>
+                <p className="text-xs text-stone-400">📍 {activeCourse.location}</p>
               </div>
 
-              {activeCourse.notes && (
-                <div className="bg-stone-950 p-4 rounded-xl border border-stone-850/60 space-y-1">
-                  <span className="text-[10px] font-mono text-amber-500 uppercase flex items-center gap-1 leading-none font-bold mb-1">
-                    <Info className="w-3 h-3 text-[#fbbf24]" />
-                    <span>Caddie playing guidelines (Committees Local Knowledge)</span>
-                  </span>
-                  <p className="text-stone-400 text-xs italic leading-relaxed">
-                    "{activeCourse.notes}"
+              <button
+                onClick={() => setSelectedCourseId(null)}
+                className="text-stone-300 hover:text-white font-mono text-xs bg-stone-800 hover:bg-stone-750 transition px-3 py-1.5 rounded-lg border border-stone-700"
+              >
+                Close Profile ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 text-sm leading-relaxed">
+              
+              <div className="md:col-span-8 space-y-4 font-sans">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest block">Course Highlights & Bio</span>
+                  <p className="text-stone-300 text-xs sm:text-sm">
+                    {activeCourse.description}
                   </p>
                 </div>
-              )}
-            </div>
 
-            <div className="lg:col-span-4 bg-stone-950 p-5 rounded-xl border border-stone-850/60 flex flex-col justify-between gap-6">
-              
-              <div className="space-y-3 text-xs">
-                <h4 className="font-display font-bold text-white uppercase text-[10px] tracking-widest border-b border-stone-850 pb-2">
-                  Layout Statistics
-                </h4>
-
-                <div className="flex justify-between items-center text-stone-400 font-mono">
-                  <span>STANDARD PAR</span>
-                  <span className="font-bold text-white uppercase">PAR {activeCourse.par}</span>
-                </div>
-                <div className="flex justify-between items-center text-stone-400 font-mono">
-                  <span>HCP DENSITY</span>
-                  <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                    activeCourse.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' :
-                    activeCourse.difficulty === 'Medium' ? 'bg-amber-500/20 text-amber-300' :
-                    'bg-slate-500/20 text-slug-100'
-                  }`}>
-                    {activeCourse.difficulty} Test
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-stone-400 font-mono">
-                  <span>TEE ACCESS</span>
-                  <span className="font-bold text-white">SOCIETY CONFIRMED</span>
-                </div>
+                {activeCourse.notes && (
+                  <div className="bg-stone-950 p-4 rounded-xl border border-stone-850/60 space-y-1">
+                    <span className="text-[10px] font-mono text-[#fbbf24] uppercase flex items-center gap-1 leading-none font-bold mb-1">
+                      <Info className="w-3 h-3 text-[#fbbf24]" />
+                      <span>Caddie playing guidelines (Committees Local Knowledge)</span>
+                    </span>
+                    <p className="text-stone-400 text-xs italic leading-relaxed">
+                      "{activeCourse.notes}"
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <a
-                href={activeCourse.websiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full text-center bg-[#fbbf24] hover:bg-amber-400 text-emerald-950 hover:scale-102 transition-all py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Visit Club Website</span>
-              </a>
+              <div className="md:col-span-4 bg-stone-950 p-5 rounded-xl border border-stone-850/60 flex flex-col justify-between gap-6">
+                
+                <div className="space-y-3 text-xs">
+                  <h4 className="font-display font-bold text-white uppercase text-[10px] tracking-widest border-b border-stone-850 pb-2">
+                    Layout Statistics
+                  </h4>
+
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>STANDARD PAR</span>
+                    <span className="font-bold text-white uppercase">PAR {activeCourse.par}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>HCP DENSITY</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                      activeCourse.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' :
+                      activeCourse.difficulty === 'Medium' ? 'bg-amber-500/20 text-amber-300' :
+                      'bg-slate-500/20 text-slate-100'
+                    }`}>
+                      {activeCourse.difficulty} Test
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>TEE ACCESS</span>
+                    <span className="font-bold text-white">SOCIETY CONFIRMED</span>
+                  </div>
+                </div>
+
+                <a
+                  href={activeCourse.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full text-center bg-[#fbbf24] hover:bg-amber-400 text-emerald-950 hover:scale-102 transition-all py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Visit Club Website</span>
+                </a>
+
+              </div>
 
             </div>
 
           </div>
-
-        </section>
+        </div>
       )}
 
     </div>
