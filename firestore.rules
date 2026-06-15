@@ -80,7 +80,7 @@ service cloud.firestore {
     }
 
     function isValidClubSettings(cs) {
-      return cs.adminPassword is string && cs.activeSeasonId is string;
+      return cs.get('adminPassword', 'admin') is string && cs.get('activeSeasonId', '') is string;
     }
 
     // Rules for each collection

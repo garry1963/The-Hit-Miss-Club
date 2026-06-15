@@ -288,7 +288,7 @@ export function useSocietyState() {
   const updateAdminPasswordOnDB = async (password: string) => {
     setAdminPassword(password);
     try {
-      await setDoc(doc(db, 'settings', 'config'), { adminPassword: password }, { merge: true });
+      await setDoc(doc(db, 'settings', 'config'), { adminPassword: password, activeSeasonId }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'settings/config');
     }
@@ -603,7 +603,7 @@ export function useSocietyState() {
       for (const s of updatedSeasons) {
         await setDoc(doc(db, 'seasons', s.id), s);
       }
-      await setDoc(doc(db, 'settings', 'config'), { activeSeasonId: id }, { merge: true });
+      await setDoc(doc(db, 'settings', 'config'), { adminPassword, activeSeasonId: id }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `toggleSeasonActive/${id}`);
     }
