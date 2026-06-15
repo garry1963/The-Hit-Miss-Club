@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy, X, Sparkles, Globe } from 'lucide-react';
 import { Event, GolfCourse, Season } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
 
@@ -35,6 +35,7 @@ export default function EventsTab({
 }: EventsTabProps) {
   // Local states
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [viewingCourse, setViewingCourse] = useState<GolfCourse | null>(null);
   const [filterFormat, setFilterFormat] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Upcoming' | 'Completed'>('All');
   
@@ -715,42 +716,222 @@ export default function EventsTab({
         </div>
       )}
 
-      {/* Extra: Spotlight Details Booklet */}
+      {/* 4. Real-time Tournament / Event profile details overlay in a high-contrast, backdrop-blurred modal */}
       {selectedEvent && selectedCourse && (
-        <section className="bg-stone-50 border border-stone-200 rounded-2xl p-6 sm:p-8 space-y-4 animate-fadeIn">
-          <div className="border-b border-stone-200 pb-3">
-            <span className="font-mono text-[10px] text-amber-600 uppercase font-bold tracking-widest block">ACTIVE TOURNEY HIGHLIGHT</span>
-            <h3 className="font-display font-medium text-stone-900 text-lg uppercase font-bold">{selectedEvent.title}</h3>
-          </div>
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-stone-950/85 backdrop-blur-md animate-fadeIn"
+          onClick={() => setSelectedEventId(null)}
+          id="event-detailed-modal"
+        >
+          <div 
+            className="bg-stone-900 text-stone-100 rounded-3xl border-2 border-[#fbbf24]/50 shadow-2xl p-6 sm:p-8 space-y-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto relative overflow-hidden text-left font-sans animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+            <div className="flex justify-between items-start border-b border-stone-800 pb-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono text-[#fbbf24] uppercase tracking-widest block">ACTIVE TOURNEY HIGHLIGHT</span>
+                <h2 className="font-display font-medium text-stone-200 text-xl sm:text-2xl uppercase font-bold inline-flex items-center gap-2">
+                  <span>{selectedEvent.title}</span>
+                  {selectedEvent.classification === 'Major' && (
+                    <Sparkles className="w-4 h-4 text-[#fbbf24] animate-pulse" />
+                  )}
+                </h2>
+                <p className="text-xs text-stone-400">📅 {formatAppDate(selectedEvent.date)} {selectedEvent.endDate && selectedEvent.endDate !== selectedEvent.date ? `to ${formatAppDate(selectedEvent.endDate)}` : ''}</p>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-stone-700 leading-relaxed font-sans">
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest font-black block">Course Layout Overview</span>
-              <div>Golf Course: <strong className="text-stone-900">{selectedCourse.name}</strong></div>
-              <div>Holes Layout: <strong className="text-stone-900">{selectedCourse.holes} Holes</strong></div>
-              <div>Course Standard Par: <strong className="text-stone-900">Par {selectedCourse.par}</strong></div>
+              <button
+                onClick={() => setSelectedEventId(null)}
+                className="text-stone-300 hover:text-white font-mono text-xs bg-stone-800 hover:bg-stone-750 transition px-3 py-1.5 rounded-lg border border-stone-700 font-bold"
+              >
+                Close Details ✕
+              </button>
             </div>
 
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest font-black block">Difficulty ratings</span>
-              <div>Course Rating: <strong className="text-stone-900">{selectedCourse.courseRating}</strong></div>
-              <div>Slope Rating: <strong className="text-stone-900">{selectedCourse.slopeRating}</strong></div>
-              <div>Tee Format rules: <strong className="text-stone-900 text-emerald-800 uppercase">{selectedEvent.format || 'Stableford'}</strong></div>
-            </div>
-
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest font-black block">Details & Location</span>
-              <div>Geographical Region: <span className="text-stone-900">{selectedCourse.location}</span></div>
-              {selectedCourse.website && (
-                <div>
-                  <a href={selectedCourse.website} target="_blank" rel="noopener noreferrer" className="text-emerald-800 hover:underline">
-                    Visit Official Site &rarr;
-                  </a>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 text-sm leading-relaxed">
+              
+              {/* Left Column info */}
+              <div className="md:col-span-8 space-y-4 font-sans">
+                <div className="space-y-1 bg-stone-950/50 p-4 rounded-xl border border-stone-850/65">
+                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest block font-bold mb-1">Host Golf Course Location</span>
+                  <div className="text-stone-200 font-sans font-medium">
+                    Course: <button 
+                      type="button" 
+                      onClick={() => setViewingCourse(selectedCourse)} 
+                      className="text-[#fbbf24] hover:text-[#fbbf24]/80 underline font-extrabold hover:scale-102 transition-transform inline-flex items-center gap-1 font-mono text-xs uppercase"
+                    >
+                      {selectedCourse.name} ↗
+                    </button>
+                  </div>
+                  <p className="text-xs text-stone-400 mt-1">📍 {selectedCourse.location}</p>
                 </div>
-              )}
+
+                {selectedEvent.notes && (
+                  <div className="bg-stone-950 p-4 rounded-xl border border-stone-850/60 space-y-1">
+                    <span className="text-[10px] font-mono text-amber-505 uppercase flex items-center gap-1 leading-none font-bold mb-1">
+                      <Info className="w-3 h-3 text-[#fbbf24]" />
+                      <span>Tournament notice & special instructions</span>
+                    </span>
+                    <p className="text-stone-305 text-xs italic leading-relaxed">
+                      "{selectedEvent.notes}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column Layout & Stats */}
+              <div className="md:col-span-4 bg-stone-950 p-5 rounded-xl border border-stone-850/60 flex flex-col justify-between gap-6">
+                
+                <div className="space-y-3 text-xs">
+                  <h4 className="font-display font-bold text-white uppercase text-[10px] tracking-widest border-b border-stone-850 pb-2">
+                    Tournament Rules & Info
+                  </h4>
+
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>FORMAT RULE</span>
+                    <span className="font-bold text-white uppercase">{selectedEvent.format || 'Stableford'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>TYPE STATUS</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[10px] uppercase ${
+                      selectedEvent.classification === 'Major' ? 'bg-[#fbbf24]/20 text-[#fbbf24]' : 'bg-emerald-500/25 text-emerald-300'
+                    }`}>
+                      {selectedEvent.classification || 'Standard'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>MAX PLAYERS</span>
+                    <span className="font-bold text-white">{selectedEvent.maxPlayers || 16} SPOTS</span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>ROUNDS TOTAL</span>
+                    <span className="font-bold text-white">{selectedEvent.roundsCount || 1} ROUNDS</span>
+                  </div>
+                </div>
+
+                {selectedEvent.status === 'Completed' ? (
+                  <button
+                    onClick={() => {
+                      setSelectedEventId(null);
+                      setCurrentTab('results');
+                    }}
+                    className="w-full text-center bg-emerald-800 hover:bg-emerald-900 border border-emerald-700 text-white hover:scale-102 transition-all py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                  >
+                    <Trophy className="w-3.5 h-3.5 text-[#fbbf24]" />
+                    <span>View Completed Results</span>
+                  </button>
+                ) : (
+                  <div className="bg-emerald-955 border border-emerald-900/60 text-emerald-400 rounded-lg p-2.5 text-center text-[11px] font-mono font-bold uppercase tracking-wide">
+                    ⏳ Dynamic registrations open
+                  </div>
+                )}
+
+              </div>
+
             </div>
+
           </div>
-        </section>
+        </div>
+      )}
+
+      {/* 5. Nested Course Profile modal inside Events Tab */}
+      {viewingCourse && (
+        <div 
+          className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-stone-950/90 backdrop-blur-md animate-fadeIn"
+          onClick={() => setViewingCourse(null)}
+          id="course-nested-modal"
+        >
+          <div 
+            className="bg-stone-900 text-stone-100 rounded-3xl border-2 border-[#fbbf24]/50 shadow-2xl p-6 sm:p-8 space-y-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto relative overflow-hidden text-left font-sans animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+            <div className="flex justify-between items-start border-b border-stone-800 pb-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono text-[#fbbf24] uppercase tracking-widest block">APPROVED COURSE PROFILE</span>
+                <h2 className="font-display font-medium text-stone-200 text-xl sm:text-2xl uppercase font-bold inline-flex items-center gap-2">
+                  <span>{viewingCourse.name}</span>
+                  <Sparkles className="w-4 h-4 text-[#fbbf24] animate-pulse" />
+                </h2>
+                <p className="text-xs text-stone-400">📍 {viewingCourse.location}</p>
+              </div>
+
+              <button
+                onClick={() => setViewingCourse(null)}
+                className="text-stone-300 hover:text-white font-mono text-xs bg-stone-800 hover:bg-stone-750 transition px-3 py-1.5 rounded-lg border border-stone-700 font-bold"
+              >
+                Close Course View ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 text-sm leading-relaxed">
+              
+              <div className="md:col-span-8 space-y-4 font-sans">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-stone-400 uppercase tracking-widest block">Course Highlights & Bio</span>
+                  <p className="text-stone-300 text-xs sm:text-sm">
+                    {viewingCourse.description}
+                  </p>
+                </div>
+
+                {viewingCourse.notes && (
+                  <div className="bg-stone-950 p-4 rounded-xl border border-stone-850/60 space-y-1">
+                    <span className="text-[10px] font-mono text-[#fbbf24] uppercase flex items-center gap-1 leading-none font-bold mb-1">
+                      <Info className="w-3 h-3 text-[#fbbf24]" />
+                      <span>Caddie playing guidelines (Committees Local Knowledge)</span>
+                    </span>
+                    <p className="text-stone-400 text-xs italic leading-relaxed">
+                      "{viewingCourse.notes}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="md:col-span-4 bg-stone-950 p-5 rounded-xl border border-stone-850/60 flex flex-col justify-between gap-6">
+                
+                <div className="space-y-3 text-xs">
+                  <h4 className="font-display font-bold text-white uppercase text-[10px] tracking-widest border-b border-stone-855 pb-2">
+                    Layout Statistics
+                  </h4>
+
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>STANDARD PAR</span>
+                    <span className="font-bold text-white uppercase">PAR {viewingCourse.par}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>HCP DENSITY</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                      viewingCourse.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' :
+                      viewingCourse.difficulty === 'Medium' ? 'bg-amber-500/20 text-amber-300' :
+                      'bg-slate-500/20 text-slate-100'
+                    }`}>
+                      {viewingCourse.difficulty} Test
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-stone-400 font-mono">
+                    <span>TEE ACCESS</span>
+                    <span className="font-bold text-white">SOCIETY CONFIRMED</span>
+                  </div>
+                </div>
+
+                {(viewingCourse.websiteUrl || viewingCourse.website) && (
+                  <a
+                    href={viewingCourse.websiteUrl || viewingCourse.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center bg-[#fbbf24] hover:bg-amber-400 text-emerald-950 hover:scale-102 transition-all py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Visit Club Website</span>
+                  </a>
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>

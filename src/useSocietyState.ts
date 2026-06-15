@@ -245,21 +245,18 @@ export function useSocietyState() {
       handleFirestoreError(error, OperationType.LIST, 'siteContent');
     });
 
-    const unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
-      snapshot.forEach((doc) => {
-        if (doc.id === 'config') {
-          const data = doc.data();
-          if (data.adminPassword) setAdminPassword(data.adminPassword);
-          if (data.activeSeasonId) setActiveSeasonId(data.activeSeasonId);
-        }
-      });
-      if (snapshot.size === 0) {
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'config'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.adminPassword) setAdminPassword(data.adminPassword);
+        if (data.activeSeasonId) setActiveSeasonId(data.activeSeasonId);
+      } else {
         setDoc(doc(db, 'settings', 'config'), { adminPassword: 'admin', activeSeasonId: '' }).catch(err => {
           handleFirestoreError(err, OperationType.WRITE, 'settings/config');
         });
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'settings');
+      handleFirestoreError(error, OperationType.LIST, 'settings/config');
     });
 
     return () => {
@@ -291,7 +288,7 @@ export function useSocietyState() {
   const updateAdminPasswordOnDB = async (password: string) => {
     setAdminPassword(password);
     try {
-      await setDoc(doc(db, 'settings', 'config'), { adminPassword: password, activeSeasonId });
+      await setDoc(doc(db, 'settings', 'config'), { adminPassword: password }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'settings/config');
     }
@@ -606,7 +603,7 @@ export function useSocietyState() {
       for (const s of updatedSeasons) {
         await setDoc(doc(db, 'seasons', s.id), s);
       }
-      await setDoc(doc(db, 'settings', 'config'), { adminPassword, activeSeasonId: id });
+      await setDoc(doc(db, 'settings', 'config'), { activeSeasonId: id }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `toggleSeasonActive/${id}`);
     }
