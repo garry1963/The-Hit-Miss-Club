@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Users, Plus, Search, Mail, Edit, Trash2, Trophy, Download, Upload, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Plus, Search, Mail, Edit, Trash2, Trophy, Download, Upload, ShieldAlert, CheckCircle, XCircle, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { Member, TournamentResult, Event, Season, Division } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
 
@@ -40,6 +40,8 @@ export default function MembersTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [divisionFilter, setDivisionFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
+  const [sortBy, setSortBy] = useState<'name' | 'handicap' | 'none'>('none');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Form toggles
   const [showAddForm, setShowAddForm] = useState(false);
@@ -251,19 +253,39 @@ export default function MembersTab({
     e.target.value = ''; // Reset
   };
 
-  // Filter members list based on queries, division and status
-  const filteredMembers = members.filter(m => {
-    const nameMatch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                      m.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const divMatch = divisionFilter === 'All' || m.division === divisionFilter;
-    
-    let statusMatch = true;
-    if (statusFilter === 'Active') statusMatch = m.active === true;
-    if (statusFilter === 'Inactive') statusMatch = m.active === false;
+  // Filter and sort members list based on queries, division, status, and sort parameters
+  const filteredMembers = React.useMemo(() => {
+    const list = members.filter(m => {
+      const nameMatch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        m.email.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const divMatch = divisionFilter === 'All' || m.division === divisionFilter;
+      
+      let statusMatch = true;
+      if (statusFilter === 'Active') statusMatch = m.active === true;
+      if (statusFilter === 'Inactive') statusMatch = m.active === false;
 
-    return nameMatch && divMatch && statusMatch;
-  });
+      return nameMatch && divMatch && statusMatch;
+    });
+
+    if (sortBy === 'name') {
+      list.sort((a, b) => {
+        const valA = a.name.trim().toLowerCase();
+        const valB = b.name.trim().toLowerCase();
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+    } else if (sortBy === 'handicap') {
+      list.sort((a, b) => {
+        const valA = a.handicap;
+        const valB = b.handicap;
+        return sortOrder === 'asc' ? valA - valB : valB - valA;
+      });
+    }
+
+    return list;
+  }, [members, searchQuery, divisionFilter, statusFilter, sortBy, sortOrder]);
 
   // Calculate stats for detail sheet
   const getMemberStats = (memberId: string) => {
@@ -575,6 +597,30 @@ export default function MembersTab({
               ))}
             </div>
           </div>
+
+          {/* Sort Selection */}
+          <div className="text-xs flex items-center gap-1.5 bg-stone-100/50 p-1 rounded-lg border border-stone-200/60 pl-2">
+            <span className="text-stone-500 font-mono uppercase text-[10px] font-bold">Sort By:</span>
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="bg-white border border-stone-200 rounded px-2 py-1 focus:outline-none font-medium text-xs text-stone-700 cursor-pointer"
+            >
+              <option value="none">Default</option>
+              <option value="name">Name</option>
+              <option value="handicap">Handicap</option>
+            </select>
+            {sortBy !== 'none' && (
+              <button
+                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="p-1 bg-white border border-stone-200 hover:bg-stone-50 rounded text-stone-600 transition"
+                title={`Toggle sort direction (currently ${sortOrder === 'asc' ? 'ascending' : 'descending'})`}
+                type="button"
+              >
+                {sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-emerald-800" /> : <ChevronDown className="w-3.5 h-3.5 text-emerald-800" />}
+              </button>
+            )}
+          </div>
         </div>
 
       </div>
@@ -585,8 +631,48 @@ export default function MembersTab({
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-200 font-display font-bold text-[#fbbf24] uppercase text-[10px] tracking-wider select-none">
-                <th className="py-4 px-5">Player Name</th>
-                <th className="py-4 px-4 text-center">Handicap</th>
+                <th 
+                  className="py-4 px-5 cursor-pointer hover:bg-stone-100 transition-colors"
+                  onClick={() => {
+                    if (sortBy === 'name') {
+                      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortBy('name');
+                      setSortOrder('asc');
+                    }
+                  }}
+                  title="Click to sort by Name"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Player Name</span>
+                    {sortBy === 'name' ? (
+                      sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-emerald-850" /> : <ChevronDown className="w-3.5 h-3.5 text-emerald-855" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-stone-350" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="py-4 px-4 text-center cursor-pointer hover:bg-stone-100 transition-colors col-span-1"
+                  onClick={() => {
+                    if (sortBy === 'handicap') {
+                      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortBy('handicap');
+                      setSortOrder('asc');
+                    }
+                  }}
+                  title="Click to sort by Handicap"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Handicap</span>
+                    {sortBy === 'handicap' ? (
+                      sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-emerald-850" /> : <ChevronDown className="w-3.5 h-3.5 text-emerald-855" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-stone-350" />
+                    )}
+                  </div>
+                </th>
                 <th className="py-4 px-4">Society Division</th>
                 <th className="py-4 px-4 text-center">Eligibility / Status</th>
                 <th className="py-4 px-4 text-center">Joined Date</th>
