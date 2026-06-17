@@ -37,9 +37,49 @@ export default function HomeTab({
   addEvent,
   activeSeasonId
 }: HomeTabProps) {
-  // Find closest upcoming event
+  // Get today's local date string in YYYY-MM-DD format
+  const getTodayString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Check if an event has already ended based on its endDate or date
+  const hasEventEnded = (e: Event) => {
+    const targetDateStr = e.endDate || e.date;
+    if (!targetDateStr) return false;
+
+    let dateToCompare = targetDateStr.trim();
+    const ymdRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+    
+    if (!ymdRegex.test(dateToCompare)) {
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateToCompare)) {
+        const [d, m, y] = dateToCompare.split('/');
+        dateToCompare = `${y}-${m}-${d}`;
+      } else {
+        try {
+          const parsed = new Date(dateToCompare);
+          if (!isNaN(parsed.getTime())) {
+            const year = parsed.getFullYear();
+            const month = String(parsed.getMonth() + 1).padStart(2, '0');
+            const day = String(parsed.getDate()).padStart(2, '0');
+            dateToCompare = `${year}-${month}-${day}`;
+          }
+        } catch {
+          // fallback
+        }
+      }
+    }
+
+    const todayStr = getTodayString();
+    return dateToCompare < todayStr;
+  };
+
+  // Find closest upcoming event that has not ended yet
   const upcomingEvents = events
-    .filter(e => e.status === 'Upcoming')
+    .filter(e => e.status === 'Upcoming' && !hasEventEnded(e))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const spotlightEvent = upcomingEvents[0];
