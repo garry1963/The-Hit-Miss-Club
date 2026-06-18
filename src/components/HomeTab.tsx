@@ -4,9 +4,145 @@
  */
 
 import React from 'react';
-import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight } from 'lucide-react';
+import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer } from 'lucide-react';
 import { Event, NewsArticle, Member, StandingsRow, Division } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
+
+// Countdown Timer Component
+interface CountdownTimerProps {
+  eventDate: string;
+  eventTime?: string;
+}
+
+function CountdownTimer({ eventDate, eventTime }: CountdownTimerProps) {
+  const [timeLeft, setTimeLeft] = React.useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    isOver: boolean;
+  } | null>(null);
+
+  React.useEffect(() => {
+    const parseTargetDate = () => {
+      let normalizedDate = eventDate.trim();
+      
+      // Handle DD/MM/YYYY
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
+        const [d, m, y] = normalizedDate.split('/');
+        normalizedDate = `${y}-${m}-${d}`;
+      }
+
+      let hours = 9; // Default to 9:00 AM tee off if unspecified
+      let minutes = 0;
+
+      if (eventTime) {
+        // Strip emojis like ⏱️
+        const cleanTime = eventTime.replace(/[^\D]*⏱️\s*/, '').trim();
+        const match24 = cleanTime.match(/^(\d{1,2}):(\d{2})$/);
+        if (match24) {
+          hours = parseInt(match24[1], 10);
+          minutes = parseInt(match24[2], 10);
+        } else {
+          const match12 = cleanTime.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)$/i);
+          if (match12) {
+            hours = parseInt(match12[1], 10);
+            minutes = match12[2] ? parseInt(match12[2], 10) : 0;
+            const ampm = match12[3].toUpperCase();
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+          }
+        }
+      }
+
+      const parts = normalizedDate.split('-').map(Number);
+      if (parts.length === 3) {
+        return new Date(parts[0], parts[1] - 1, parts[2], hours, minutes, 0);
+      }
+      return new Date(eventDate);
+    };
+
+    const targetDate = parseTargetDate();
+
+    const calculateTimeLeft = () => {
+      if (isNaN(targetDate.getTime())) {
+        return null;
+      }
+      
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        return { days: 0, hours: 0, minutes: 0, seconds: 0, isOver: true };
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      return { days, hours, minutes, seconds, isOver: false };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [eventDate, eventTime]);
+
+  if (!timeLeft) return null;
+
+  if (timeLeft.isOver) {
+    return (
+      <div className="mt-4 bg-emerald-950/40 border border-emerald-500/20 px-3 py-2 rounded-lg text-emerald-300 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 animate-pulse">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping"></span>
+        ⛳ Tee off is live!
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 space-y-2.5 border-t border-stone-800 pt-4">
+      <div className="flex items-center gap-1.5 text-stone-400">
+        <Timer className="w-3.5 h-3.5 text-[#fbbf24]" />
+        <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Tee Off Countdown</span>
+      </div>
+      
+      <div className="grid grid-cols-4 gap-2 text-center">
+        <div className="bg-stone-850 border border-stone-800 rounded-xl p-2 shadow-sm">
+          <div className="text-xl font-mono font-bold tracking-tight text-white select-none">
+            {String(timeLeft.days).padStart(2, '0')}
+          </div>
+          <div className="text-[8px] font-mono text-stone-500 uppercase tracking-wider mt-0.5">Days</div>
+        </div>
+        
+        <div className="bg-stone-850 border border-stone-800 rounded-xl p-2 shadow-sm">
+          <div className="text-xl font-mono font-bold tracking-tight text-[#fbbf24] select-none">
+            {String(timeLeft.hours).padStart(2, '0')}
+          </div>
+          <div className="text-[8px] font-mono text-stone-500 uppercase tracking-wider mt-0.5">Hours</div>
+        </div>
+        
+        <div className="bg-stone-850 border border-stone-800 rounded-xl p-2 shadow-sm">
+          <div className="text-xl font-mono font-bold tracking-tight text-stone-100 select-none">
+            {String(timeLeft.minutes).padStart(2, '0')}
+          </div>
+          <div className="text-[8px] font-mono text-stone-500 uppercase tracking-wider mt-0.5">Mins</div>
+        </div>
+        
+        <div className="bg-stone-850 border border-stone-800 rounded-xl p-2 shadow-sm relative overflow-hidden">
+          <div className="text-xl font-mono font-bold tracking-tight text-emerald-400 select-none animate-pulse">
+            {String(timeLeft.seconds).padStart(2, '0')}
+          </div>
+          <div className="text-[8px] font-mono text-stone-500 uppercase tracking-wider mt-0.5">Secs</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface HomeTabProps {
   setCurrentTab: (tab: string) => void;
@@ -441,6 +577,8 @@ export default function HomeTab({
                 <p className="text-stone-400 text-xs leading-relaxed italic border-l-2 border-emerald-800 pl-3">
                   {spotlightEvent.notes || 'No general notes for this event.'}
                 </p>
+
+                <CountdownTimer eventDate={spotlightEvent.date} eventTime={spotlightEvent.time} />
               </div>
             ) : (
               <div className="space-y-2 py-4">

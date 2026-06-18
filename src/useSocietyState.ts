@@ -647,24 +647,22 @@ export function useSocietyState() {
 
     // Initialize map with members
     members.forEach(m => {
-      standingsMap.set(m.id, {
-        totalPoints: 0,
-        eventsPlayed: 0,
-        wins: 0,
-        strokesAccumulated: 0,
-        netStrokesAccumulated: 0
-      });
+      // Only active members are eligible for active divisional positions / standings
+      if (m.active !== false) {
+        standingsMap.set(m.id, {
+          totalPoints: 0,
+          eventsPlayed: 0,
+          wins: 0,
+          strokesAccumulated: 0,
+          netStrokesAccumulated: 0
+        });
+      }
     });
 
     // Populate from results
     seasonResults.forEach(r => {
-      const stats = standingsMap.get(r.playerId) || {
-        totalPoints: 0,
-        eventsPlayed: 0,
-        wins: 0,
-        strokesAccumulated: 0,
-        netStrokesAccumulated: 0
-      };
+      const stats = standingsMap.get(r.playerId);
+      if (!stats) return; // Skip inactive members
 
       stats.totalPoints += r.points;
       stats.eventsPlayed += 1;
@@ -681,7 +679,7 @@ export function useSocietyState() {
     const rows: StandingsRow[] = [];
     standingsMap.forEach((stats, plyrId) => {
       const member = members.find(m => m.id === plyrId);
-      if (member) {
+      if (member && member.active !== false) {
         rows.push({
           playerId: plyrId,
           playerName: member.name,

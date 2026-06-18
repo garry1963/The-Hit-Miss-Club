@@ -141,14 +141,17 @@ export default function LeagueTab({
     }
   };
 
-  // Derive number of players in the selected division (requested)
-  const divisionPlayerCount = members.filter(m => m.division === selectedDiv).length;
+  // Derive number of active players in the selected division (requested)
+  const divisionPlayerCount = members.filter(m => m.division === selectedDiv && m.active !== false).length;
 
   const currentEntries = manualEntries[selectedDiv] || [];
 
-  const filteredStandings = currentEntries.filter(row =>
-    row.playerName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStandings = currentEntries.filter(row => {
+    // Only active members are eligible for a divisional position
+    const member = members.find(m => m.name === row.playerName);
+    if (member && member.active === false) return false;
+    return row.playerName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   // Manual entries update triggers
   const handleOpenAddEntry = () => {
@@ -426,7 +429,7 @@ export default function LeagueTab({
         <div className="flex flex-wrap gap-1 bg-stone-100 rounded-xl p-1 text-xs">
           {/* Base Divisions */}
           {['Premier Division', 'Championship Division'].map((name) => {
-            const count = members.filter(m => m.division === name).length;
+            const count = members.filter(m => m.division === name && m.active !== false).length;
             const isSelected = selectedDiv === name;
             return (
               <button
@@ -447,7 +450,7 @@ export default function LeagueTab({
           {divisions
             .filter(d => d.name !== 'Premier Division' && d.name !== 'Championship Division')
             .map((div) => {
-              const count = members.filter(m => m.division === div.name).length;
+              const count = members.filter(m => m.division === div.name && m.active !== false).length;
               const isSelected = selectedDiv === div.name;
               return (
                 <div key={div.id} className="relative group flex items-center">
@@ -547,6 +550,7 @@ export default function LeagueTab({
                   <option value={entryPlayerName}>{entryPlayerName} (Custom/Unlisted)</option>
                 )}
                 {[...members]
+                  .filter(m => m.active !== false)
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map(m => (
                     <option key={m.id} value={m.name}>
