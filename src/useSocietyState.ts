@@ -9,6 +9,7 @@ import { DEFAULT_SITE_CONTENT } from './defaultContent';
 import { db } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './utils/firestoreError';
+import { getBaseEventId } from './utils/dateUtils';
 
 const STORAGE_KEY_PREFIX = 'hit_and_miss_club_v1_';
 
@@ -425,7 +426,7 @@ export function useSocietyState() {
     if (window.confirm('Are you sure you want to delete this event? This will also remove any tournament results entered for it.')) {
       try {
         await deleteDoc(doc(db, 'events', id));
-        const associatedResults = results.filter(r => r.eventId === id);
+        const associatedResults = results.filter(r => getBaseEventId(r.eventId) === id);
         for (const r of associatedResults) {
           await deleteDoc(doc(db, 'results', r.id));
         }
@@ -620,7 +621,7 @@ export function useSocietyState() {
         const associatedEvents = events.filter(e => e.seasonId === id);
         for (const e of associatedEvents) {
           await deleteDoc(doc(db, 'events', e.id));
-          const associatedResults = results.filter(r => r.eventId === e.id);
+          const associatedResults = results.filter(r => getBaseEventId(r.eventId) === e.id);
           for (const r of associatedResults) {
             await deleteDoc(doc(db, 'results', r.id));
           }
@@ -635,7 +636,7 @@ export function useSocietyState() {
   const getStandingsForSeason = (seasonId: string): StandingsRow[] => {
     const seasonEvents = events.filter(e => e.seasonId === seasonId && e.status === 'Completed');
     const seasonEventIds = seasonEvents.map(e => e.id);
-    const seasonResults = results.filter(r => seasonEventIds.includes(r.eventId));
+    const seasonResults = results.filter(r => seasonEventIds.includes(getBaseEventId(r.eventId)));
 
     const standingsMap = new Map<string, {
       totalPoints: number;

@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Award, Plus, Trash2, Search, Filter, ShieldAlert, Download, Save, RefreshCw } from 'lucide-react';
 import { Event, TournamentResult, Member, GolfCourse } from '../types';
-import { formatAppDate } from '../utils/dateUtils';
+import { formatAppDate, getBaseEventId } from '../utils/dateUtils';
 
 interface ResultsTabProps {
   events: Event[];
@@ -34,13 +34,19 @@ export default function ResultsTab({
 
   // Active selected event for looking at results
   const [selectedEventId, setSelectedEventId] = useState<string>(() => {
-    return completedEvents[0]?.id || '';
+    const firstEvent = completedEvents[0];
+    if (!firstEvent) return '';
+    const isQ = firstEvent.classification === 'Qualifier' || firstEvent.title.includes('(Q)') || firstEvent.title.includes('Qualifier');
+    return isQ ? firstEvent.id : (firstEvent.id + '-main');
   });
 
   // If selected event ID is not in active completedEvents (due to season switch), reset it safely
   React.useEffect(() => {
-    if (completedEvents.length > 0 && !completedEvents.some(e => e.id === selectedEventId)) {
-      setSelectedEventId(completedEvents[0].id);
+    const baseId = getBaseEventId(selectedEventId);
+    if (completedEvents.length > 0 && !completedEvents.some(e => e.id === baseId)) {
+      const firstEvent = completedEvents[0];
+      const isQ = firstEvent.classification === 'Qualifier' || firstEvent.title.includes('(Q)') || firstEvent.title.includes('Qualifier');
+      setSelectedEventId(isQ ? firstEvent.id : (firstEvent.id + '-main'));
     }
   }, [activeSeasonId, completedEvents, selectedEventId]);
 
@@ -59,7 +65,7 @@ export default function ResultsTab({
   }[]>([]);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
-  const activeEvent = events.find(e => e.id === selectedEventId);
+  const activeEvent = events.find(e => e.id === getBaseEventId(selectedEventId));
   const activeCourse = activeEvent ? courses.find(c => c.id === activeEvent.courseId) : null;
 
   // Find results for selected event
@@ -249,11 +255,24 @@ export default function ResultsTab({
                 }}
                 className="bg-white border border-stone-250 rounded-lg p-2 text-stone-900 text-sm font-sans focus:outline-none focus:border-emerald-800"
               >
-                {completedEvents.map((evt) => (
-                  <option key={evt.id} value={evt.id}>
-                    🏆 {evt.title} ({formatAppDate(evt.date)})
-                  </option>
-                ))}
+                {completedEvents.flatMap((evt) => {
+                  const isQ = evt.classification === 'Qualifier' || evt.title.includes('(Q)') || evt.title.includes('Qualifier');
+                  if (isQ) {
+                    return [
+                      <option key={evt.id} value={evt.id}>
+                        🏆 {evt.title} (Q Entry) ({formatAppDate(evt.date)})
+                      </option>
+                    ];
+                  }
+                  return [
+                    <option key={evt.id + '-main'} value={evt.id + '-main'}>
+                      🏆 {evt.title} (Main Entry) ({formatAppDate(evt.date)})
+                    </option>,
+                    <option key={evt.id + '-alternate'} value={evt.id + '-alternate'}>
+                      ⛳ {evt.title} (Alternate Entry) ({formatAppDate(evt.date)})
+                    </option>
+                  ];
+                })}
               </select>
             </div>
 
@@ -298,8 +317,16 @@ export default function ResultsTab({
           {activeEvent && (
             <div className="bg-emerald-950 text-white rounded-2xl p-5 sm:p-6 border border-emerald-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="space-y-1">
-                <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest block">Venue of Record</span>
-                <h2 className="font-display font-bold text-lg sm:text-xl text-stone-100 uppercase">{activeEvent.title}</h2>
+                <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest block font-bold">
+                  {activeEvent.classification === 'Qualifier' || activeEvent.title.includes('(Q)') || activeEvent.title.includes('Qualifier')
+                    ? 'Qualifier Competition Entry' 
+                    : (selectedEventId.endsWith('-alternate') ? 'Alternate Competition Entry' : 'Main Competition Entry')}
+                </span>
+                <h2 className="font-display font-bold text-lg sm:text-xl text-stone-100 uppercase">
+                  {activeEvent.title} {activeEvent.classification === 'Qualifier' || activeEvent.title.includes('(Q)') || activeEvent.title.includes('Qualifier')
+                    ? '(Q Entry)' 
+                    : (selectedEventId.endsWith('-alternate') ? '(Alternate)' : '(Main)')}
+                </h2>
                 <p className="text-stone-300 text-xs sm:text-sm">
                   Played at <strong>{activeCourse ? activeCourse.name : 'Unknown course'}</strong> across par {activeCourse?.par || 72}
                 </p>
@@ -318,7 +345,11 @@ export default function ResultsTab({
               <div className="flex justify-between items-center border-b border-stone-200 pb-2">
                 <div className="flex items-center gap-2 text-stone-900">
                   <ShieldAlert className="w-5 h-5 text-amber-600" />
-                  <h3 className="font-display font-bold uppercase text-base">Scorecard Editor Spread: {activeEvent?.title}</h3>
+                  <h3 className="font-display font-bold uppercase text-base">
+                    Scorecard Editor Spread: {activeEvent?.title} {activeEvent?.classification === 'Qualifier' || activeEvent?.title.includes('(Q)') || activeEvent?.title.includes('Qualifier')
+                      ? '(Q Entry)' 
+                      : (selectedEventId.endsWith('-alternate') ? '(Alternate)' : '(Main)')}
+                  </h3>
                 </div>
                 <button 
                   onClick={() => setShowAdminPanel(false)} 

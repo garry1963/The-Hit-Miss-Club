@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Users, Plus, Search, Mail, Edit, Trash2, Trophy, Download, Upload, ShieldAlert, CheckCircle, XCircle, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { Member, TournamentResult, Event, Season, Division } from '../types';
-import { formatAppDate } from '../utils/dateUtils';
+import { formatAppDate, getBaseEventId } from '../utils/dateUtils';
 
 interface MembersTabProps {
   members: Member[];
@@ -292,7 +292,7 @@ export default function MembersTab({
     const playerResults = results.filter(r => r.playerId === memberId);
     
     const resultsWithSeason = playerResults.map(r => {
-      const evt = events.find(e => e.id === r.eventId);
+      const evt = events.find(e => e.id === getBaseEventId(r.eventId));
       return {
         ...r,
         seasonId: evt ? evt.seasonId : ''
@@ -307,7 +307,7 @@ export default function MembersTab({
 
     // Hist histories
     const histories = resultsWithSeason.map(r => {
-      const evt = events.find(e => e.id === r.eventId);
+      const evt = events.find(e => e.id === getBaseEventId(r.eventId));
       const seas = seasons.find(s => s.id === r.seasonId);
       return {
         eventTitle: evt ? evt.title : 'Deleted Tournament',

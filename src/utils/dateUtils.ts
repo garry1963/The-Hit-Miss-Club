@@ -35,3 +35,9 @@ export function formatAppDate(dateStr: string | undefined | null): string {
 
   return trimmed;
 }
+
+export function getBaseEventId(eventId: string): string {
+  if (eventId.endsWith('-main')) return eventId.slice(0, -5);
+  if (eventId.endsWith('-alternate')) return eventId.slice(0, -10);
+  return eventId;
+}
