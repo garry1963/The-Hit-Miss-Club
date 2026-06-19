@@ -602,8 +602,15 @@ export default function ResultsTab({
                     <th className="py-4 px-5">Pos</th>
                     <th className="py-4 px-5">Player Name</th>
                     <th className="py-4 px-5">Handicap</th>
-                    <th className="py-4 px-5">Total Gross</th>
-                    <th className="py-4 px-5">Total Net</th>
+                    <th className="py-4 px-5">Round 1</th>
+                    <th className="py-4 px-5">Round 2</th>
+                    {activeEvent?.classification === 'Major' && (
+                      <>
+                        <th className="py-4 px-5">Round 3</th>
+                        <th className="py-4 px-5">Round 4</th>
+                      </>
+                    )}
+                    <th className="py-4 px-5">Total</th>
                     <th className="py-4 px-5 text-right">Points Awarded</th>
                   </tr>
                 </thead>
@@ -611,6 +618,31 @@ export default function ResultsTab({
                   {searchableResults.map((row) => {
                     const member = members.find(m => m.id === row.playerId);
                     const isPodium = row.position <= 3;
+                    const isMajor = activeEvent?.classification === 'Major';
+
+                    let r1 = row.round1Score !== undefined ? row.round1Score : 0;
+                    let r2 = row.round2Score !== undefined ? row.round2Score : 0;
+                    let r3 = row.round3Score !== undefined ? row.round3Score : 0;
+                    let r4 = row.round4Score !== undefined ? row.round4Score : 0;
+
+                    if (row.round1Score === undefined && row.grossScore !== 0) {
+                      const coursePar = activeCourse?.par || 72;
+                      const rawTot = row.grossScore > 25 ? (row.grossScore - (isMajor ? coursePar * 4 : coursePar * 2)) : row.grossScore;
+                      if (isMajor) {
+                        const q = Math.floor(rawTot / 4);
+                        r1 = q;
+                        r2 = q;
+                        r3 = q;
+                        r4 = rawTot - (q * 3);
+                      } else {
+                        r1 = Math.round(rawTot / 2);
+                        r2 = rawTot - r1;
+                        r3 = 0;
+                        r4 = 0;
+                      }
+                    }
+
+                    const calculatedSum = r1 + r2 + (isMajor ? (r3 + r4) : 0);
                     
                     return (
                       <tr 
@@ -643,11 +675,24 @@ export default function ResultsTab({
                         <td className="py-4 px-5 font-mono text-stone-600 font-medium">
                           {member ? member.handicap : 0}
                         </td>
-                        <td className="py-4 px-5 font-mono font-bold text-stone-700">
-                          {formatGolfScore(row.grossScore)}
+                        <td className="py-4 px-5 font-mono text-stone-700">
+                          {formatGolfScore(r1)}
                         </td>
-                        <td className="py-4 px-5 font-mono font-extrabold text-emerald-800">
-                          {formatGolfScore(row.netScore)}
+                        <td className="py-4 px-5 font-mono text-stone-700">
+                          {formatGolfScore(r2)}
+                        </td>
+                        {isMajor && (
+                          <>
+                            <td className="py-4 px-5 font-mono text-stone-700">
+                              {formatGolfScore(r3)}
+                            </td>
+                            <td className="py-4 px-5 font-mono text-stone-700">
+                              {formatGolfScore(r4)}
+                            </td>
+                          </>
+                        )}
+                        <td className="py-4 px-5 font-mono font-extrabold text-[#064e3b]">
+                          {formatGolfScore(calculatedSum)}
                         </td>
                         <td className="py-4 px-5 text-right font-mono font-bold text-stone-900">
                           <span className={`px-2 py-0.5 rounded text-xs ${
