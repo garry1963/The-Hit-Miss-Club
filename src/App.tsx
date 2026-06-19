@@ -199,7 +199,6 @@ export default function App() {
         activeSeasonId={state.activeSeasonId}
         setActiveSeasonId={state.setActiveSeasonId}
         adminPassword={state.adminPassword}
-        news={state.news}
       />
 
       {/* 2. Main Page Content frame with animated mount fade-ins */}

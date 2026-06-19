@@ -5,8 +5,7 @@
 
 import React, { useState } from 'react';
 import { Menu, X, ShieldAlert, Award, Calendar, Trophy, Users, BookOpen, Image, Mail, Home, Info, MapPin, Lock, Eye, EyeOff } from 'lucide-react';
-import { Season, NewsArticle } from '../types';
-import { formatAppDate } from '../utils/dateUtils';
+import { Season } from '../types';
 
 interface HeaderProps {
   currentTab: string;
@@ -17,7 +16,6 @@ interface HeaderProps {
   activeSeasonId: string;
   setActiveSeasonId: (id: string) => void;
   adminPassword: string;
-  news: NewsArticle[];
 }
 
 export default function Header({
@@ -28,73 +26,13 @@ export default function Header({
   seasons,
   activeSeasonId,
   setActiveSeasonId,
-  adminPassword,
-  news
+  adminPassword
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [selectedArchivedNews, setSelectedArchivedNews] = useState<NewsArticle | null>(null);
-
-  // Get today's local date string in YYYY-MM-DD format
-  const getTodayString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Get days difference helper
-  const getDaysDifference = (todayYMD: string, articleYMD: string) => {
-    try {
-      const parts1 = todayYMD.split('-').map(Number);
-      const parts2 = articleYMD.split('-').map(Number);
-      if (parts1.length === 3 && parts2.length === 3) {
-        const d1 = new Date(parts1[0], parts1[1] - 1, parts1[2]);
-        const d2 = new Date(parts2[0], parts2[1] - 1, parts2[2]);
-        const diff = d1.getTime() - d2.getTime();
-        return Math.floor(diff / (1000 * 60 * 60 * 24));
-      }
-    } catch {
-      // ignore
-    }
-    return 0;
-  };
-
-  // Get days old compared to today
-  const getDaysOld = (articleDateStr: string) => {
-    if (!articleDateStr) return 999;
-    let normalized = articleDateStr.trim();
-    const ymdRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
-    
-    if (!ymdRegex.test(normalized)) {
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
-        const [d, m, y] = normalized.split('/');
-        normalized = `${y}-${m}-${d}`;
-      } else {
-        try {
-          const parsed = new Date(normalized);
-          if (!isNaN(parsed.getTime())) {
-            const year = parsed.getFullYear();
-            const month = String(parsed.getMonth() + 1).padStart(2, '0');
-            const day = String(parsed.getDate()).padStart(2, '0');
-            normalized = `${year}-${month}-${day}`;
-          }
-        } catch {
-          // fallback
-        }
-      }
-    }
-
-    const todayStr = getTodayString();
-    return getDaysDifference(todayStr, normalized);
-  };
-
-  const archivedNews = news ? news.filter(n => getDaysOld(n.date) > 7) : [];
-  const sortedArchived = [...archivedNews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleAdminToggle = () => {
     if (isAdmin) {
@@ -207,34 +145,6 @@ export default function Header({
               </select>
             </div>
 
-            {/* Archive Dropdown Selector */}
-            {sortedArchived.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-stone-900/60 rounded-lg p-1.5 border border-emerald-800">
-                <span className="text-[10px] text-[#fbbf24] font-mono font-bold px-1.5 uppercase">Archive:</span>
-                <select
-                  id="header-archive-selector"
-                  value=""
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (id) {
-                      const selected = archivedNews.find(n => n.id === id);
-                      if (selected) {
-                        setSelectedArchivedNews(selected);
-                      }
-                    }
-                  }}
-                  className="bg-[#064e3b] border border-[#fbbf24]/20 rounded px-2 py-1 text-xs text-stone-100 focus:outline-none focus:border-[#fbbf24] max-w-[155px]"
-                >
-                  <option value="">Select Bulletin...</option>
-                  {sortedArchived.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      [{formatAppDate(item.date)}] {item.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             {/* Admin Switcher */}
             <button
               id="header-admin-toggle"
@@ -326,32 +236,7 @@ export default function Header({
                 </div>
               </div>
 
-              {sortedArchived.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[#fbbf24] font-mono font-bold uppercase">News Archive</span>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (id) {
-                        const selected = archivedNews.find(n => n.id === id);
-                        if (selected) {
-                          setSelectedArchivedNews(selected);
-                        }
-                      }
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-full bg-[#064e3b] border border-[#fbbf24]/30 rounded px-2 py-2 text-stone-100 focus:outline-none font-sans"
-                  >
-                    <option value="">Select Archived Bulletin...</option>
-                    {sortedArchived.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        [{formatAppDate(item.date)}] {item.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+
             </div>
 
             {/* Navigation links */}
@@ -460,79 +345,7 @@ export default function Header({
         </div>
       )}
 
-      {/* Archived News Modal */}
-      {selectedArchivedNews && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white text-stone-900 rounded-3xl border border-stone-200 shadow-2xl p-6 sm:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-6 text-left relative font-sans">
-            <button 
-              onClick={() => setSelectedArchivedNews(null)}
-              className="absolute top-4 right-4 p-2 rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition font-bold"
-              type="button"
-              aria-label="Close Announcement"
-            >
-              ✕
-            </button>
 
-            {/* Banner Category & Date Header */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-              <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded uppercase">
-                {selectedArchivedNews.category}
-              </span>
-              <span className="text-stone-500 font-medium">
-                Published {formatAppDate(selectedArchivedNews.date)}
-              </span>
-              {selectedArchivedNews.author && (
-                <span className="text-stone-500">
-                  by {selectedArchivedNews.author}
-                </span>
-              )}
-            </div>
-
-            {/* Title */}
-            <h3 className="font-display font-black text-2xl text-stone-900 leading-tight border-b border-stone-100 pb-3">
-              {selectedArchivedNews.title}
-            </h3>
-
-            {/* Image Banner */}
-            {selectedArchivedNews.image && (
-              <div className="h-64 sm:h-72 w-full overflow-hidden rounded-2xl border border-stone-200 shadow-inner select-none bg-stone-100">
-                <img
-                  src={selectedArchivedNews.image}
-                  alt={selectedArchivedNews.title}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "https://picsum.photos/seed/golfnews/800/600";
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Summary Block */}
-            {selectedArchivedNews.summary && (
-              <p className="text-stone-500 italic bg-stone-50 p-4 border-l-4 border-[#fbbf24] rounded-r-xl leading-relaxed text-sm">
-                "{selectedArchivedNews.summary}"
-              </p>
-            )}
-
-            {/* Full Length Content Body */}
-            <div className="space-y-4 text-stone-800 text-sm leading-relaxed whitespace-pre-wrap">
-              {selectedArchivedNews.content || "No extended text contents registered for this bulletin."}
-            </div>
-
-            {/* Close Button Action */}
-            <div className="pt-4 border-t border-stone-150 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedArchivedNews(null)}
-                className="bg-[#064e3b] hover:bg-emerald-900 text-[#fbbf24] font-bold uppercase py-2.5 px-6 rounded-xl text-xs tracking-wider transition shadow-md"
-              >
-                Done Reading
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

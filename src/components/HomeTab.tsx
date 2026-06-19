@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer } from 'lucide-react';
+import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer, Archive, BookOpen } from 'lucide-react';
 import { Event, NewsArticle, Member, StandingsRow, Division } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
 
@@ -655,10 +655,10 @@ export default function HomeTab({
         {/* Featured News & Society Announcements */}
         <div className="lg:col-span-8 flex flex-col justify-between bg-white rounded-2xl p-6 sm:p-8 shadow-md border border-stone-200 text-left">
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-4 gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-stone-100 pb-5 gap-4">
               <div>
-                <h2 className="font-display font-bold text-xl sm:text-2xl text-stone-900 uppercase tracking-tight">
-                  Society News & Announcements
+                <h2 className="font-display font-bold text-xl sm:text-2xl text-stone-900 uppercase tracking-tight flex items-center gap-2">
+                  <span>Society News & Announcements</span>
                 </h2>
                 <p className="text-xs text-stone-400 mt-0.5 font-mono">
                   Recent updates within the last 7 days
@@ -667,40 +667,84 @@ export default function HomeTab({
               
               {/* Option to select and view any archived news */}
               {archivedNews.length > 0 && (
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 whitespace-nowrap">Archive:</span>
-                  <select
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (id) {
-                        const selected = archivedNews.find(n => n.id === id);
-                        if (selected) {
-                          setSelectedNews(selected);
+                <div className="flex items-center gap-2 self-start md:self-center bg-[#022c22]/5 p-1 px-3 rounded-2xl border border-emerald-800/10 hover:border-emerald-800/35 transition-all">
+                  <Archive className="w-3.5 h-3.5 text-[#fbbf24] hidden sm:block" />
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#064e3b] whitespace-nowrap">Archive Lookup:</span>
+                  <div className="relative">
+                    <select
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (id) {
+                          const selected = archivedNews.find(n => n.id === id);
+                          if (selected) {
+                            setSelectedNews(selected);
+                          }
+                          e.target.value = ''; // Reset select
                         }
-                        e.target.value = ''; // Reset select
-                      }
-                    }}
-                    className="bg-stone-50 border border-stone-200 text-stone-700 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none focus:ring-1 focus:ring-emerald-800 font-mono w-44 sm:w-56"
-                  >
-                    <option value="">Select Archived Bulletins...</option>
-                    {sortedArchived.map(item => (
-                      <option key={item.id} value={item.id}>
-                        [{formatAppDate(item.date)}] {item.title}
-                      </option>
-                    ))}
-                  </select>
+                      }}
+                      className="bg-transparent text-stone-800 text-xs rounded-lg pl-1 pr-6 py-1.5 focus:outline-none font-mono font-bold w-40 sm:w-52 cursor-pointer appearance-none outline-none"
+                    >
+                      <option value="">Select Bulletin...</option>
+                      {sortedArchived.map(item => (
+                        <option key={item.id} value={item.id}>
+                          [{formatAppDate(item.date)}] {item.title}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-stone-400 text-[9px] pointer-events-none">▼</span>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Empty state if no news or announcements in the last 7 days */}
             {!mainNews && (
-              <div className="text-center py-8 px-4 bg-stone-55/40 rounded-2xl border border-dashed border-stone-200 space-y-2.5">
-                <span className="text-stone-400 text-2xl block">📭</span>
-                <h3 className="font-display font-bold text-stone-750 text-sm">No Recent Announcements</h3>
-                <p className="text-stone-500 text-xs max-w-sm mx-auto leading-relaxed">
-                  There are no announcements published in the last 7 days. You can browse all historical bulletins using the selector above or the archive list below.
-                </p>
+              <div className="text-center py-10 px-5 sm:px-8 bg-stone-50/60 rounded-3xl border border-dashed border-stone-205 space-y-4 shadow-sm">
+                <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto border border-amber-200">
+                  <Archive className="w-6 h-6 text-amber-500" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-display font-bold text-stone-800 text-base">No Bulletins in the Last 7 Days</h3>
+                  <p className="text-stone-500 text-xs max-w-md mx-auto leading-relaxed">
+                    There are no dynamic announcements published within this past week. However, the Society's entire historic bulletins catalog remains archived and accessible:
+                  </p>
+                </div>
+
+                {archivedNews.length > 0 && (
+                  <div className="max-w-xs sm:max-w-md mx-auto bg-white p-4 rounded-2xl border border-emerald-800/15 shadow-sm space-y-2">
+                    <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-[#064e3b]">
+                      Open an Archived Society Bulletin / Wrap-up:
+                    </label>
+                    <div className="relative">
+                      <select
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          if (id) {
+                            const selected = archivedNews.find(n => n.id === id);
+                            if (selected) {
+                              setSelectedNews(selected);
+                            }
+                            e.target.value = ''; // Reset select
+                          }
+                        }}
+                        className="w-full bg-stone-50 border-2 border-emerald-800 hover:border-emerald-920 text-stone-900 text-xs font-bold rounded-xl pl-9 pr-8 py-2.5 shadow-inner transition-all focus:outline-none focus:ring-1 focus:ring-emerald-800 outline-none appearance-none cursor-pointer text-left animate-pulse"
+                      >
+                        <option value="">Choose and read archived bulletin...</option>
+                        {sortedArchived.map(item => (
+                          <option key={item.id} value={item.id}>
+                            [{formatAppDate(item.date)}] {item.title}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <BookOpen className="w-4 h-4 text-[#fbbf24]" />
+                      </div>
+                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400 text-[10px]">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
