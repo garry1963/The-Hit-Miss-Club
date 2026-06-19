@@ -241,22 +241,32 @@ export default function HomeTab({
     return Array.from(divNames);
   }, [divisions, members]);
 
-  // Standings leader per division
+  // Standings leader per division from manually managed divisional tables
   const getLeaderForDivision = (divName: string) => {
-    const list = standings.filter(row => {
-      const member = members.find(m => m.id === row.playerId);
-      const mDiv = member?.division || 'Premier Division';
-      return mDiv === divName;
-    });
-    // Sort logic exactly matches useSocietyState standings calculation:
-    // sorting by totalPoints descending, wins descending, eventsPlayed descending, handicap ascending
-    list.sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      if (b.eventsPlayed !== a.eventsPlayed) return b.eventsPlayed - a.eventsPlayed;
-      return a.handicap - b.handicap;
-    });
-    return list[0] || null;
+    try {
+      const saved = localStorage.getItem('hit_and_miss_club_manual_entries');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const entries = parsed[divName] || [];
+        if (entries.length > 0) {
+          const sorted = [...entries].sort((a, b) => {
+            if (a.rank && b.rank) return Number(a.rank) - Number(b.rank);
+            if (b.totalPoints !== a.totalPoints) return Number(b.totalPoints) - Number(a.totalPoints);
+            return Number(b.wins) - Number(a.wins);
+          });
+          const top = sorted[0];
+          if (top) {
+            return {
+              playerName: top.playerName,
+              totalPoints: top.totalPoints
+            };
+          }
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return null;
   };
 
   // Get days difference helper

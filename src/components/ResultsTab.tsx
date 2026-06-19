@@ -84,9 +84,16 @@ export default function ResultsTab({
     return member.name.toLowerCase().includes(playerSearchQuery.toLowerCase());
   });
 
+  const formatGolfScore = (score: number) => {
+    if (score > 0) return `+${score}`;
+    if (score < 0) return `${score}`;
+    return 'E';
+  };
+
   // Set up admin panel state with existing results
   const handleOpenAdmin = () => {
     const isMajor = activeEvent?.classification === 'Major';
+    const coursePar = activeCourse?.par || 72;
     if (eventResults.length > 0) {
       setAdminResults(eventResults.map(r => {
         const member = members.find(m => m.id === r.playerId);
@@ -111,65 +118,62 @@ export default function ResultsTab({
           }
         }
 
+        // Convert gross round scores to relative if they are legacy gross values (> 25)
+        if (r1 > 25) r1 = r1 - coursePar;
+        if (r2 > 25) r2 = r2 - coursePar;
+        if (r3 > 25) r3 = r3 - coursePar;
+        if (r4 > 25) r4 = r4 - coursePar;
+
+        const calculatedGrossRelative = r1 + r2 + (isMajor ? (r3 + r4) : 0);
+
         return {
           playerId: r.playerId,
-          grossScore: r.grossScore,
+          grossScore: calculatedGrossRelative,
           handicap: r.handicap !== undefined ? r.handicap : (member ? member.handicap : 0),
-          netScore: r.netScore,
+          netScore: calculatedGrossRelative - (r.handicap !== undefined ? r.handicap : (member ? member.handicap : 0)),
           points: r.points,
           position: r.position,
-          round1Score: r1 || 0,
-          round2Score: r2 || 0,
-          round3Score: r3 || 0,
-          round4Score: r4 || 0
+          round1Score: r1,
+          round2Score: r2,
+          round3Score: r3,
+          round4Score: r4
         };
       }));
     } else {
       // Seed with some blank entries
       const defaultMember = members[0];
       const defaultHcp = defaultMember ? defaultMember.handicap : 18;
-      const initialGross = isMajor ? 280 : 85;
-      const r1 = isMajor ? 70 : 42;
-      const r2 = isMajor ? 70 : 43;
-      const r3 = isMajor ? 70 : 0;
-      const r4 = isMajor ? 70 : 0;
       setAdminResults([{
         playerId: defaultMember?.id || '',
-        grossScore: initialGross,
+        grossScore: 0,
         handicap: defaultHcp,
-        netScore: initialGross - defaultHcp,
+        netScore: -defaultHcp,
         points: 0,
         position: 1,
-        round1Score: r1,
-        round2Score: r2,
-        round3Score: r3,
-        round4Score: r4
+        round1Score: 0,
+        round2Score: 0,
+        round3Score: 0,
+        round4Score: 0
       }]);
     }
     setShowAdminPanel(true);
   };
 
   const handleAddAdminRow = () => {
-    const isMajor = activeEvent?.classification === 'Major';
     // Find first member not already in adminResults
     const availableMember = members.find(m => !adminResults.some(ar => ar.playerId === m.id)) || members[0];
     const defaultHcp = availableMember ? availableMember.handicap : 18;
-    const initialGross = isMajor ? 280 : 85;
-    const r1 = isMajor ? 70 : 42;
-    const r2 = isMajor ? 70 : 43;
-    const r3 = isMajor ? 70 : 0;
-    const r4 = isMajor ? 70 : 0;
     setAdminResults(prev => [...prev, { 
       playerId: availableMember?.id || '', 
-      grossScore: initialGross,
+      grossScore: 0,
       handicap: defaultHcp,
-      netScore: initialGross - defaultHcp,
+      netScore: -defaultHcp,
       points: 0,
       position: prev.length + 1,
-      round1Score: r1,
-      round2Score: r2,
-      round3Score: r3,
-      round4Score: r4
+      round1Score: 0,
+      round2Score: 0,
+      round3Score: 0,
+      round4Score: 0
     }]);
   };
 
@@ -247,7 +251,7 @@ export default function ResultsTab({
     // Save
     setEventResults(selectedEventId, finalScores);
     setShowAdminPanel(false);
-    alert('Scores successfully saved with standard manual adjustments. The League Table has automatically updated!');
+    alert('Scores successfully saved with standard manual adjustments.');
   };
 
   // CSV download function for society records
@@ -260,8 +264,8 @@ export default function ResultsTab({
         r.position,
         member ? member.name : 'Unknown',
         member ? member.handicap : 0,
-        r.grossScore,
-        r.netScore,
+        formatGolfScore(r.grossScore),
+        formatGolfScore(r.netScore),
         r.points
       ];
     });
@@ -471,7 +475,6 @@ export default function ResultsTab({
                             <td className="py-3 px-4">
                               <input
                                 type="number"
-                                min={0}
                                 value={ar.round1Score}
                                 onChange={e => handleAdminValueChange(index, 'round1Score', e.target.value)}
                                 className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
@@ -480,7 +483,6 @@ export default function ResultsTab({
                             <td className="py-3 px-4">
                               <input
                                 type="number"
-                                min={0}
                                 value={ar.round2Score}
                                 onChange={e => handleAdminValueChange(index, 'round2Score', e.target.value)}
                                 className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
@@ -491,7 +493,6 @@ export default function ResultsTab({
                                 <td className="py-3 px-4">
                                   <input
                                     type="number"
-                                    min={0}
                                     value={ar.round3Score}
                                     onChange={e => handleAdminValueChange(index, 'round3Score', e.target.value)}
                                     className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
@@ -500,7 +501,6 @@ export default function ResultsTab({
                                 <td className="py-3 px-4">
                                   <input
                                     type="number"
-                                    min={0}
                                     value={ar.round4Score}
                                     onChange={e => handleAdminValueChange(index, 'round4Score', e.target.value)}
                                     className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
@@ -510,10 +510,10 @@ export default function ResultsTab({
                             )}
                             <td className="py-3 px-4">
                               <input
-                                type="number"
-                                value={ar.grossScore}
+                                type="text"
+                                value={formatGolfScore(ar.grossScore)}
                                 readOnly
-                                className="bg-stone-50 border border-stone-200 p-1.5 rounded w-16 font-mono font-bold text-stone-800 text-xs cursor-not-allowed"
+                                className="bg-stone-50 border border-stone-200 p-1.5 rounded w-16 font-mono font-bold text-center text-stone-800 text-xs cursor-not-allowed"
                                 title="Automatically calculated as sum of rounds"
                               />
                             </td>
@@ -602,8 +602,8 @@ export default function ResultsTab({
                     <th className="py-4 px-5">Pos</th>
                     <th className="py-4 px-5">Player Name</th>
                     <th className="py-4 px-5">Handicap</th>
-                    <th className="py-4 px-5">Gross Score</th>
-                    <th className="py-4 px-5">Net Score</th>
+                    <th className="py-4 px-5">Total Gross</th>
+                    <th className="py-4 px-5">Total Net</th>
                     <th className="py-4 px-5 text-right">Points Awarded</th>
                   </tr>
                 </thead>
@@ -632,7 +632,7 @@ export default function ResultsTab({
                         </td>
                         <td className="py-4 px-5 font-semibold text-stone-900 font-sans">
                           <div className="flex items-center gap-2">
-                            <span>{member ? member.name : 'Unknown player'}</span>
+                             <span>{member ? member.name : 'Unknown player'}</span>
                             {member?.role === 'Committee' && (
                               <span className="bg-emerald-50 text-emerald-800 text-[8px] uppercase font-bold px-1 py-0.5 rounded border border-emerald-200">
                                 Comm
@@ -643,11 +643,11 @@ export default function ResultsTab({
                         <td className="py-4 px-5 font-mono text-stone-600 font-medium">
                           {member ? member.handicap : 0}
                         </td>
-                        <td className="py-4 px-5 font-mono font-normal text-stone-700">
-                          {row.grossScore} strokes
+                        <td className="py-4 px-5 font-mono font-bold text-stone-700">
+                          {formatGolfScore(row.grossScore)}
                         </td>
-                        <td className="py-4 px-5 font-mono font-bold text-emerald-800">
-                          {row.netScore}
+                        <td className="py-4 px-5 font-mono font-extrabold text-emerald-800">
+                          {formatGolfScore(row.netScore)}
                         </td>
                         <td className="py-4 px-5 text-right font-mono font-bold text-stone-900">
                           <span className={`px-2 py-0.5 rounded text-xs ${
