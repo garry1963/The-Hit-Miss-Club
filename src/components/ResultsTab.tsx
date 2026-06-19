@@ -62,6 +62,10 @@ export default function ResultsTab({
     netScore: number;
     points: number;
     position: number;
+    round1Score: number;
+    round2Score: number;
+    round3Score: number;
+    round4Score: number;
   }[]>([]);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
@@ -82,45 +86,90 @@ export default function ResultsTab({
 
   // Set up admin panel state with existing results
   const handleOpenAdmin = () => {
+    const isMajor = activeEvent?.classification === 'Major';
     if (eventResults.length > 0) {
       setAdminResults(eventResults.map(r => {
         const member = members.find(m => m.id === r.playerId);
+        
+        let r1 = r.round1Score;
+        let r2 = r.round2Score;
+        let r3 = r.round3Score;
+        let r4 = r.round4Score;
+        
+        if (r1 === undefined) {
+          if (isMajor) {
+            const q = Math.floor(r.grossScore / 4);
+            r1 = q;
+            r2 = q;
+            r3 = q;
+            r4 = r.grossScore - (q * 3);
+          } else {
+            r1 = Math.round(r.grossScore / 2);
+            r2 = r.grossScore - r1;
+            r3 = 0;
+            r4 = 0;
+          }
+        }
+
         return {
           playerId: r.playerId,
           grossScore: r.grossScore,
           handicap: r.handicap !== undefined ? r.handicap : (member ? member.handicap : 0),
           netScore: r.netScore,
           points: r.points,
-          position: r.position
+          position: r.position,
+          round1Score: r1 || 0,
+          round2Score: r2 || 0,
+          round3Score: r3 || 0,
+          round4Score: r4 || 0
         };
       }));
     } else {
       // Seed with some blank entries
       const defaultMember = members[0];
       const defaultHcp = defaultMember ? defaultMember.handicap : 18;
+      const initialGross = isMajor ? 280 : 85;
+      const r1 = isMajor ? 70 : 42;
+      const r2 = isMajor ? 70 : 43;
+      const r3 = isMajor ? 70 : 0;
+      const r4 = isMajor ? 70 : 0;
       setAdminResults([{
         playerId: defaultMember?.id || '',
-        grossScore: 85,
+        grossScore: initialGross,
         handicap: defaultHcp,
-        netScore: 85 - defaultHcp,
+        netScore: initialGross - defaultHcp,
         points: 0,
-        position: 1
+        position: 1,
+        round1Score: r1,
+        round2Score: r2,
+        round3Score: r3,
+        round4Score: r4
       }]);
     }
     setShowAdminPanel(true);
   };
 
   const handleAddAdminRow = () => {
+    const isMajor = activeEvent?.classification === 'Major';
     // Find first member not already in adminResults
     const availableMember = members.find(m => !adminResults.some(ar => ar.playerId === m.id)) || members[0];
     const defaultHcp = availableMember ? availableMember.handicap : 18;
+    const initialGross = isMajor ? 280 : 85;
+    const r1 = isMajor ? 70 : 42;
+    const r2 = isMajor ? 70 : 43;
+    const r3 = isMajor ? 70 : 0;
+    const r4 = isMajor ? 70 : 0;
     setAdminResults(prev => [...prev, { 
       playerId: availableMember?.id || '', 
-      grossScore: 85,
+      grossScore: initialGross,
       handicap: defaultHcp,
-      netScore: 85 - defaultHcp,
+      netScore: initialGross - defaultHcp,
       points: 0,
-      position: prev.length + 1
+      position: prev.length + 1,
+      round1Score: r1,
+      round2Score: r2,
+      round3Score: r3,
+      round4Score: r4
     }]);
   };
 
@@ -130,7 +179,7 @@ export default function ResultsTab({
 
   const handleAdminValueChange = (
     index: number,
-    key: 'playerId' | 'grossScore' | 'handicap' | 'netScore' | 'points' | 'position',
+    key: 'playerId' | 'grossScore' | 'handicap' | 'netScore' | 'points' | 'position' | 'round1Score' | 'round2Score' | 'round3Score' | 'round4Score',
     value: any
   ) => {
     setAdminResults(prev => {
@@ -150,9 +199,18 @@ export default function ResultsTab({
         const member = members.find(m => m.id === value);
         if (member) {
           updatedRow.handicap = member.handicap;
-          updatedRow.netScore = updatedRow.grossScore - member.handicap;
         }
       }
+
+      // Auto-recalculate grossScore (total score) and netScore on rounds or hcp updates
+      const isMajor = activeEvent?.classification === 'Major';
+      const r1 = Number(updatedRow.round1Score) || 0;
+      const r2 = Number(updatedRow.round2Score) || 0;
+      const r3 = isMajor ? (Number(updatedRow.round3Score) || 0) : 0;
+      const r4 = isMajor ? (Number(updatedRow.round4Score) || 0) : 0;
+
+      updatedRow.grossScore = r1 + r2 + r3 + r4;
+      updatedRow.netScore = updatedRow.grossScore - Number(updatedRow.handicap);
 
       copy[index] = updatedRow;
       return copy;
@@ -179,7 +237,11 @@ export default function ResultsTab({
       handicap: ar.handicap,
       netScore: ar.netScore,
       points: ar.points,
-      position: ar.position
+      position: ar.position,
+      round1Score: ar.round1Score,
+      round2Score: ar.round2Score,
+      round3Score: ar.round3Score,
+      round4Score: ar.round4Score
     }));
 
     // Save
@@ -364,11 +426,17 @@ export default function ResultsTab({
                   <table className="w-full text-left text-xs sm:text-sm font-sans leading-relaxed">
                     <thead className="bg-[#064e3b] text-stone-100 font-display uppercase tracking-wider text-[11px]">
                       <tr>
-                        <th className="py-3 px-4"># Row</th>
                         <th className="py-3 px-4">Player Name</th>
                         <th className="py-3 px-4">Played Handicap</th>
-                        <th className="py-3 px-4">Gross Score</th>
-                        <th className="py-3 px-4">Net Score</th>
+                        <th className="py-3 px-4">Round 1 Score</th>
+                        <th className="py-3 px-4">Round 2 Score</th>
+                        {activeEvent?.classification === 'Major' && (
+                          <>
+                            <th className="py-3 px-4">Round 3 Score</th>
+                            <th className="py-3 px-4">Round 4 Score</th>
+                          </>
+                        )}
+                        <th className="py-3 px-4">Total Score</th>
                         <th className="py-3 px-4">Points Awarded</th>
                         <th className="py-3 px-4">Pos / Rank</th>
                         <th className="py-3 px-4 text-center">Action</th>
@@ -378,9 +446,6 @@ export default function ResultsTab({
                       {adminResults.map((ar, index) => {
                         return (
                           <tr key={index} className="hover:bg-stone-50/50">
-                            <td className="py-3 px-4 font-mono font-semibold text-[#fbbf24]">
-                              {index + 1}
-                            </td>
                             <td className="py-3 px-4 min-w-[180px]">
                               <select
                                 value={ar.playerId}
@@ -407,19 +472,49 @@ export default function ResultsTab({
                               <input
                                 type="number"
                                 min={0}
-                                max={200}
-                                value={ar.grossScore}
-                                onChange={e => handleAdminValueChange(index, 'grossScore', e.target.value)}
+                                value={ar.round1Score}
+                                onChange={e => handleAdminValueChange(index, 'round1Score', e.target.value)}
                                 className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
                               />
                             </td>
                             <td className="py-3 px-4">
                               <input
                                 type="number"
-                                step="0.1"
-                                value={ar.netScore}
-                                onChange={e => handleAdminValueChange(index, 'netScore', e.target.value)}
+                                min={0}
+                                value={ar.round2Score}
+                                onChange={e => handleAdminValueChange(index, 'round2Score', e.target.value)}
                                 className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
+                              />
+                            </td>
+                            {activeEvent?.classification === 'Major' && (
+                              <>
+                                <td className="py-3 px-4">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={ar.round3Score}
+                                    onChange={e => handleAdminValueChange(index, 'round3Score', e.target.value)}
+                                    className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
+                                  />
+                                </td>
+                                <td className="py-3 px-4">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={ar.round4Score}
+                                    onChange={e => handleAdminValueChange(index, 'round4Score', e.target.value)}
+                                    className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
+                                  />
+                                </td>
+                              </>
+                            )}
+                            <td className="py-3 px-4">
+                              <input
+                                type="number"
+                                value={ar.grossScore}
+                                readOnly
+                                className="bg-stone-50 border border-stone-200 p-1.5 rounded w-16 font-mono font-bold text-stone-800 text-xs cursor-not-allowed"
+                                title="Automatically calculated as sum of rounds"
                               />
                             </td>
                             <td className="py-3 px-4">
@@ -428,7 +523,7 @@ export default function ResultsTab({
                                 min={0}
                                 value={ar.points}
                                 onChange={e => handleAdminValueChange(index, 'points', e.target.value)}
-                                className="bg-white border border-stone-250 p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs"
+                                className="bg-white border border-[#fbbf24] p-1.5 rounded w-16 font-mono text-stone-900 focus:outline-none text-xs font-semibold"
                               />
                             </td>
                             <td className="py-3 px-4">

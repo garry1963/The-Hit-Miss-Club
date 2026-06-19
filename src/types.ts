@@ -71,6 +71,10 @@ export interface TournamentResult {
   netScore: number; // gross - handicap adjustment
   points: number; // points awarded based on net finish
   position: number;
+  round1Score?: number;
+  round2Score?: number;
+  round3Score?: number;
+  round4Score?: number;
 }
 
 export interface StandingsRow {
