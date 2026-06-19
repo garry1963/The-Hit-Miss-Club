@@ -665,36 +665,42 @@ export default function HomeTab({
                 </p>
               </div>
               
-              {/* Option to select and view any archived news */}
-              {archivedNews.length > 0 && (
-                <div className="flex items-center gap-2 self-start md:self-center bg-[#022c22]/5 p-1 px-3 rounded-2xl border border-emerald-800/10 hover:border-emerald-800/35 transition-all">
-                  <Archive className="w-3.5 h-3.5 text-[#fbbf24] hidden sm:block" />
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#064e3b] whitespace-nowrap">Archive Lookup:</span>
-                  <div className="relative">
-                    <select
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        if (id) {
-                          const selected = archivedNews.find(n => n.id === id);
-                          if (selected) {
-                            setSelectedNews(selected);
-                          }
-                          e.target.value = ''; // Reset select
+              {/* Option to select and view any archived news - PERMANENTLY VISIBLE */}
+              <div className={`flex items-center gap-2 self-start md:self-center bg-[#064e3b] px-3.5 py-1.5 rounded-xl border border-[#fbbf24] shadow-md transition-all select-none ${archivedNews.length === 0 ? 'opacity-65 cursor-not-allowed' : 'hover:bg-emerald-900 cursor-pointer'}`}>
+                <Archive className="w-3.5 h-3.5 text-[#fbbf24] shrink-0" />
+                <span className="text-[10px] font-mono font-black uppercase tracking-wider text-[#fbbf24] whitespace-nowrap">Archive Lookup:</span>
+                <div className="relative flex items-center">
+                  <select
+                    id="card-archive-selector-dropdown"
+                    disabled={archivedNews.length === 0}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (id) {
+                        const selected = archivedNews.find(n => n.id === id);
+                        if (selected) {
+                          setSelectedNews(selected);
                         }
-                      }}
-                      className="bg-transparent text-stone-800 text-xs rounded-lg pl-1 pr-6 py-1.5 focus:outline-none font-mono font-bold w-40 sm:w-52 cursor-pointer appearance-none outline-none"
-                    >
-                      <option value="">Select Bulletin...</option>
-                      {sortedArchived.map(item => (
-                        <option key={item.id} value={item.id}>
-                          [{formatAppDate(item.date)}] {item.title}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-stone-400 text-[9px] pointer-events-none">▼</span>
-                  </div>
+                        e.target.value = ''; // Reset select
+                      }
+                    }}
+                    className="bg-transparent text-white text-xs font-bold rounded pl-1 pr-6 py-0.5 focus:outline-none focus:ring-0 font-sans cursor-pointer appearance-none outline-none max-w-[140px] sm:max-w-[200px] truncate disabled:cursor-not-allowed"
+                  >
+                    {archivedNews.length === 0 ? (
+                      <option value="" className="bg-[#064e3b] text-white font-bold">No Archived Bulletins</option>
+                    ) : (
+                      <>
+                        <option value="" className="bg-[#064e3b] text-white font-bold">Select Bulletin...</option>
+                        {sortedArchived.map(item => (
+                          <option key={item.id} value={item.id} className="bg-[#064e3b] text-white">
+                            [{formatAppDate(item.date)}] {item.title}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                  <span className="absolute right-1 text-[#fbbf24] text-[9px] pointer-events-none select-none">▼</span>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Empty state if no news or announcements in the last 7 days */}
@@ -710,7 +716,7 @@ export default function HomeTab({
                   </p>
                 </div>
 
-                {archivedNews.length > 0 && (
+                {archivedNews.length > 0 ? (
                   <div className="max-w-xs sm:max-w-md mx-auto bg-white p-4 rounded-2xl border border-emerald-800/15 shadow-sm space-y-2">
                     <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-[#064e3b]">
                       Open an Archived Society Bulletin / Wrap-up:
@@ -743,6 +749,11 @@ export default function HomeTab({
                         ▼
                       </div>
                     </div>
+                  </div>
+                ) : (
+                  <div className="max-w-sm mx-auto bg-stone-50 p-4 rounded-2xl border border-stone-200/65 text-center text-xs text-stone-500 space-y-1">
+                    <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-stone-500">System Registry Status</p>
+                    <p>No archived bulletins are currently available in the database registry.</p>
                   </div>
                 )}
               </div>
