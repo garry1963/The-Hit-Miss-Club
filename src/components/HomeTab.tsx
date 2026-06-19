@@ -259,9 +259,62 @@ export default function HomeTab({
     return list[0] || null;
   };
 
-  // Featured news
-  const mainNews = news.find(n => n.isFeatured) || news[0];
-  const secondaryNews = news.filter(n => n.id !== mainNews?.id).slice(0, 2);
+  // Get days difference helper
+  const getDaysDifference = (todayYMD: string, articleYMD: string) => {
+    try {
+      const parts1 = todayYMD.split('-').map(Number);
+      const parts2 = articleYMD.split('-').map(Number);
+      if (parts1.length === 3 && parts2.length === 3) {
+        const d1 = new Date(parts1[0], parts1[1] - 1, parts1[2]);
+        const d2 = new Date(parts2[0], parts2[1] - 1, parts2[2]);
+        const diff = d1.getTime() - d2.getTime();
+        return Math.floor(diff / (1000 * 60 * 60 * 24));
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  };
+
+  // Get days old compared to today
+  const getDaysOld = (articleDateStr: string) => {
+    if (!articleDateStr) return 999;
+    let normalized = articleDateStr.trim();
+    const ymdRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+    
+    if (!ymdRegex.test(normalized)) {
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
+        const [d, m, y] = normalized.split('/');
+        normalized = `${y}-${m}-${d}`;
+      } else {
+        try {
+          const parsed = new Date(normalized);
+          if (!isNaN(parsed.getTime())) {
+            const year = parsed.getFullYear();
+            const month = String(parsed.getMonth() + 1).padStart(2, '0');
+            const day = String(parsed.getDate()).padStart(2, '0');
+            normalized = `${year}-${month}-${day}`;
+          }
+        } catch {
+          // fallback
+        }
+      }
+    }
+
+    const todayStr = getTodayString();
+    return getDaysDifference(todayStr, normalized);
+  };
+
+  // Archive filtering: news over 7 days old goes to archive, rest remains active on home screen
+  const activeNews = news.filter(n => getDaysOld(n.date) <= 7);
+  const archivedNews = news.filter(n => getDaysOld(n.date) > 7);
+
+  const sortedActive = [...activeNews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedArchived = [...archivedNews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Featured news from active list
+  const mainNews = sortedActive.find(n => n.isFeatured) || sortedActive[0];
+  const secondaryNews = sortedActive.filter(n => n.id !== mainNews?.id).slice(0, 2);
 
   const [selectedNews, setSelectedNews] = React.useState<NewsArticle | null>(null);
 
@@ -602,19 +655,56 @@ export default function HomeTab({
         {/* Featured News & Society Announcements */}
         <div className="lg:col-span-8 flex flex-col justify-between bg-white rounded-2xl p-6 sm:p-8 shadow-md border border-stone-200 text-left">
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-              <h2 className="font-display font-bold text-xl sm:text-2xl text-stone-900 uppercase tracking-tight">
-                Society News & Announcements
-              </h2>
-              <button
-                onClick={() => setCurrentTab('about')} // Or keep simple
-                className="text-stone-400 hover:text-stone-600 text-xs font-mono font-medium"
-              >
-                Category Highlights
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-4 gap-4">
+              <div>
+                <h2 className="font-display font-bold text-xl sm:text-2xl text-stone-900 uppercase tracking-tight">
+                  Society News & Announcements
+                </h2>
+                <p className="text-xs text-stone-400 mt-0.5 font-mono">
+                  Recent updates within the last 7 days
+                </p>
+              </div>
+              
+              {/* Option to select and view any archived news */}
+              {archivedNews.length > 0 && (
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 whitespace-nowrap">Archive:</span>
+                  <select
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (id) {
+                        const selected = archivedNews.find(n => n.id === id);
+                        if (selected) {
+                          setSelectedNews(selected);
+                        }
+                        e.target.value = ''; // Reset select
+                      }
+                    }}
+                    className="bg-stone-50 border border-stone-200 text-stone-700 text-xs rounded-xl px-2.5 py-2.5 focus:outline-none focus:ring-1 focus:ring-emerald-800 font-mono w-44 sm:w-56"
+                  >
+                    <option value="">Select Archived Bulletins...</option>
+                    {sortedArchived.map(item => (
+                      <option key={item.id} value={item.id}>
+                        [{formatAppDate(item.date)}] {item.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {/* Main Featured Article */}
+            {/* Empty state if no news or announcements in the last 7 days */}
+            {!mainNews && (
+              <div className="text-center py-8 px-4 bg-stone-55/40 rounded-2xl border border-dashed border-stone-200 space-y-2.5">
+                <span className="text-stone-400 text-2xl block">📭</span>
+                <h3 className="font-display font-bold text-stone-750 text-sm">No Recent Announcements</h3>
+                <p className="text-stone-500 text-xs max-w-sm mx-auto leading-relaxed">
+                  There are no announcements published in the last 7 days. You can browse all historical bulletins using the selector above or the archive list below.
+                </p>
+              </div>
+            )}
+
+            {/* Main Featured Article (only if active) */}
             {mainNews && (
               <div 
                 onClick={() => setSelectedNews(mainNews)}
@@ -649,7 +739,7 @@ export default function HomeTab({
               </div>
             )}
 
-            {/* Secondary Articles list */}
+            {/* Secondary Articles list (only if active) */}
             {secondaryNews.length > 0 && (
               <div className="pt-6 border-t border-stone-100 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {secondaryNews.map(item => (
@@ -675,6 +765,38 @@ export default function HomeTab({
                 ))}
               </div>
             )}
+
+            {/* Archived News List */}
+            {archivedNews.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-stone-150">
+                <h3 className="font-display font-bold text-stone-800 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <span>📁 Historical Bulletins Archive ({archivedNews.length})</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {sortedArchived.map(item => (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedNews(item)}
+                      className="flex items-start gap-3 p-3 bg-stone-50/70 hover:bg-stone-100/90 border border-stone-150 rounded-xl cursor-pointer hover:shadow-sm transition group"
+                    >
+                      <div className="flex-1 min-w-0 space-y-1 text-left">
+                        <span className="text-[9px] font-mono text-stone-400 block font-bold">
+                          {formatAppDate(item.date)} • {item.category}
+                        </span>
+                        <h4 className="font-display font-bold text-xs text-stone-800 truncate group-hover:text-emerald-800 transition-colors">
+                          {item.title}
+                        </h4>
+                        <p className="text-[11px] text-stone-500 line-clamp-1">
+                          {item.summary}
+                        </p>
+                      </div>
+                      <span className="text-stone-400 group-hover:text-amber-600 text-[10px] font-mono font-bold self-center">&rarr;</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
 
           <div className="pt-6 mt-6 border-t border-stone-100 text-right">
