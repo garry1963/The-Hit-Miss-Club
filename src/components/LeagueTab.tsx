@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trophy, Award, Search, Check, Play, Edit, Trash2, Plus, Download, Upload, ShieldAlert, Sparkles } from 'lucide-react';
-import { Member, Season, Division, Event, TournamentResult } from '../types';
+import { Member, Season, Division, Event, TournamentResult, StandingEntry } from '../types';
 
 interface LeagueTabProps {
   members: Member[];
@@ -21,18 +21,8 @@ interface LeagueTabProps {
   updateMember: (m: Member) => void;
   siteContent: Record<string, string>;
   updateSiteContent: (key: string, val: string) => void;
-}
-
-interface StandingEntry {
-  id: string; // unique entry id
-  rank: number;
-  playerName: string;
-  handicap: number;
-  rounds: number;
-  avgGross: number;
-  avgNet: number;
-  totalPoints: number;
-  wins: number;
+  manualEntries: Record<string, StandingEntry[]>;
+  updateManualEntries: (newEntries: Record<string, StandingEntry[]>) => void;
 }
 
 export default function LeagueTab({
@@ -48,7 +38,9 @@ export default function LeagueTab({
   isAdmin,
   updateMember,
   siteContent,
-  updateSiteContent
+  updateSiteContent,
+  manualEntries,
+  updateManualEntries
 }: LeagueTabProps) {
   // Local active division tab
   const [selectedDiv, setSelectedDiv] = useState<string>('Premier Division');
@@ -64,12 +56,6 @@ export default function LeagueTab({
 
   // Standing entries are manual-entry only
   const standingMode = 'manual';
-
-  // Manual entries state persisted to localStorage
-  const [manualEntries, setManualEntries] = useState<Record<string, StandingEntry[]>>(() => {
-    const saved = localStorage.getItem('hit_and_miss_club_manual_entries');
-    return saved ? JSON.parse(saved) : {};
-  });
 
   // Entry modification states
   const [editingEntry, setEditingEntry] = useState<StandingEntry | null>(null);
@@ -91,13 +77,6 @@ export default function LeagueTab({
       setRuleInput(siteContent.league_rule_text || "Ties in standings points are settled dynamically by descending wins count, then highest average points output, followed by the lower initial player handicap tier.");
     }
   }, [siteContent]);
-
-  // Standing entries are manual-entry only
-
-  // Sync manual standings across reloads
-  useEffect(() => {
-    localStorage.setItem('hit_and_miss_club_manual_entries', JSON.stringify(manualEntries));
-  }, [manualEntries]);
 
   // Reset selected division fallback if deleted
   useEffect(() => {
@@ -187,10 +166,11 @@ export default function LeagueTab({
         ...e,
         rank: idx + 1
       }));
-      setManualEntries(prev => ({
-        ...prev,
+      const nextEntries = {
+        ...manualEntries,
         [selectedDiv]: updatedList
-      }));
+      };
+      updateManualEntries(nextEntries);
     }
   };
 
@@ -235,10 +215,11 @@ export default function LeagueTab({
       rank: index + 1
     }));
 
-    setManualEntries(prev => ({
-      ...prev,
+    const nextEntries = {
+      ...manualEntries,
       [selectedDiv]: updatedList
-    }));
+    };
+    updateManualEntries(nextEntries);
 
     setShowAddEntryForm(false);
     setEditingEntry(null);
@@ -336,10 +317,11 @@ export default function LeagueTab({
             rank: idx + 1
           }));
 
-          setManualEntries(prev => ({
-            ...prev,
+          const nextEntries = {
+            ...manualEntries,
             [selectedDiv]: finalRanks
-          }));
+          };
+          updateManualEntries(nextEntries);
           alert(`Imported ${importedList.length} rows successfully into manual standings!`);
         }
       } else {
@@ -400,11 +382,9 @@ export default function LeagueTab({
               <button
                 onClick={() => {
                   if (window.confirm(`Are you sure you want to clear all standings rows for the ${selectedDiv}?`)) {
-                    setManualEntries(prev => {
-                      const updated = { ...prev };
-                      delete updated[selectedDiv];
-                      return updated;
-                    });
+                    const nextEntries = { ...manualEntries };
+                    delete nextEntries[selectedDiv];
+                    updateManualEntries(nextEntries);
                     alert(`Cleared all standing rows for ${selectedDiv}.`);
                   }
                 }}

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Member, Season, Division, GolfCourse, Event, TournamentResult, NewsArticle, GalleryImage, StandingsRow } from './types';
+import { Member, Season, Division, GolfCourse, Event, TournamentResult, NewsArticle, GalleryImage, StandingsRow, StandingEntry } from './types';
 import { DEFAULT_SITE_CONTENT } from './defaultContent';
 import { db } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
@@ -62,6 +62,10 @@ export function useSocietyState() {
   const [news, setNews] = useState<NewsArticle[]>(() => getStored('news', []));
   const [gallery, setGallery] = useState<GalleryImage[]>(() => getStored('gallery', []));
   const [siteContent, setSiteContent] = useState<Record<string, string>>(() => getStored('siteContent', DEFAULT_SITE_CONTENT));
+  const [manualEntries, setManualEntries] = useState<Record<string, StandingEntry[]>>(() => {
+    const saved = localStorage.getItem('hit_and_miss_club_manual_entries');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   // Connection test on boot
   useEffect(() => {
@@ -260,6 +264,22 @@ export function useSocietyState() {
       handleFirestoreError(error, OperationType.LIST, 'settings/config');
     });
 
+    const unsubManualEntries = onSnapshot(doc(db, 'settings', 'manualEntries'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.data) {
+          try {
+            const parsed = JSON.parse(data.data);
+            setManualEntries(parsed);
+          } catch (e) {
+            console.error('Error parsing Firestore manualEntries: ', e);
+          }
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'settings/manualEntries');
+    });
+
     return () => {
       unsubMembers();
       unsubSeasons();
@@ -271,8 +291,19 @@ export function useSocietyState() {
       unsubGallery();
       unsubSiteContent();
       unsubSettings();
+      unsubManualEntries();
     };
   }, []);
+
+  const updateManualEntries = async (newEntries: Record<string, StandingEntry[]>) => {
+    setManualEntries(newEntries);
+    localStorage.setItem('hit_and_miss_club_manual_entries', JSON.stringify(newEntries));
+    try {
+      await setDoc(doc(db, 'settings', 'manualEntries'), { data: JSON.stringify(newEntries) });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'settings/manualEntries');
+    }
+  };
 
   const updateSiteContent = async (key: string, value: string) => {
     setSiteContent(prev => ({
@@ -749,6 +780,8 @@ export function useSocietyState() {
     news,
     gallery,
     standings,
+    manualEntries,
+    updateManualEntries,
     resetDatabase,
     adminPassword,
     setAdminPassword: updateAdminPasswordOnDB,

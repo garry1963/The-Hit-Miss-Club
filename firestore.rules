@@ -140,7 +140,7 @@ service cloud.firestore {
 
     match /settings/{settingId} {
       allow read: if true;
-      allow create, update: if isValidClubSettings(incoming());
+      allow create, update: if (settingId == 'config' && isValidClubSettings(incoming())) || (settingId == 'manualEntries' && incoming().data is string);
       allow delete: if true;
     }
   }

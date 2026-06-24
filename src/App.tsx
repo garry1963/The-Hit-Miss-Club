@@ -40,6 +40,7 @@ export default function App() {
             divisions={state.divisions}
             addEvent={state.addEvent}
             activeSeasonId={state.activeSeasonId}
+            manualEntries={state.manualEntries}
           />
         );
       case 'about':
@@ -96,6 +97,8 @@ export default function App() {
             updateMember={state.updateMember}
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
+            manualEntries={state.manualEntries}
+            updateManualEntries={state.updateManualEntries}
           />
         );
       case 'courses':
@@ -181,6 +184,7 @@ export default function App() {
             divisions={state.divisions}
             addEvent={state.addEvent}
             activeSeasonId={state.activeSeasonId}
+            manualEntries={state.manualEntries}
           />
         );
     }

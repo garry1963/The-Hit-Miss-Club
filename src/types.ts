@@ -108,3 +108,15 @@ export interface GalleryImage {
   date: string;
   approved?: boolean;
 }
+
+export interface StandingEntry {
+  id: string;
+  rank: number;
+  playerName: string;
+  handicap: number;
+  rounds: number;
+  avgGross: number;
+  avgNet: number;
+  totalPoints: number;
+  wins: number;
+}

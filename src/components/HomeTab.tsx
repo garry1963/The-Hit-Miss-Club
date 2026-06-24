@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer, Archive, BookOpen } from 'lucide-react';
-import { Event, NewsArticle, Member, StandingsRow, Division } from '../types';
+import { Event, NewsArticle, Member, StandingsRow, Division, StandingEntry } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
 
 // Countdown Timer Component
@@ -157,6 +157,7 @@ interface HomeTabProps {
   divisions: Division[];
   addEvent: (e: Omit<Event, 'id'>) => Promise<any>;
   activeSeasonId: string;
+  manualEntries: Record<string, StandingEntry[]>;
 }
 
 export default function HomeTab({
@@ -171,7 +172,8 @@ export default function HomeTab({
   updateSiteContent,
   divisions,
   addEvent,
-  activeSeasonId
+  activeSeasonId,
+  manualEntries
 }: HomeTabProps) {
   // Get today's local date string in YYYY-MM-DD format
   const getTodayString = () => {
@@ -244,27 +246,23 @@ export default function HomeTab({
   // Standings leader per division from manually managed divisional tables
   const getLeaderForDivision = (divName: string) => {
     try {
-      const saved = localStorage.getItem('hit_and_miss_club_manual_entries');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const entries = parsed[divName] || [];
-        if (entries.length > 0) {
-          const sorted = [...entries].sort((a, b) => {
-            if (a.rank && b.rank) return Number(a.rank) - Number(b.rank);
-            if (b.totalPoints !== a.totalPoints) return Number(b.totalPoints) - Number(a.totalPoints);
-            return Number(b.wins) - Number(a.wins);
-          });
-          const top = sorted[0];
-          if (top) {
-            return {
-              playerName: top.playerName,
-              totalPoints: top.totalPoints
-            };
-          }
+      const entries = manualEntries[divName] || [];
+      if (entries.length > 0) {
+        const sorted = [...entries].sort((a, b) => {
+          if (a.rank && b.rank) return Number(a.rank) - Number(b.rank);
+          if (b.totalPoints !== a.totalPoints) return Number(b.totalPoints) - Number(a.totalPoints);
+          return Number(b.wins) - Number(a.wins);
+        });
+        const top = sorted[0];
+        if (top) {
+          return {
+            playerName: top.playerName,
+            totalPoints: top.totalPoints
+          };
         }
       }
-    } catch {
-      // fallback
+    } catch (e) {
+      console.error(e);
     }
     return null;
   };
