@@ -5,7 +5,12 @@ export function formatAppDate(dateStr: string | undefined | null): string {
   if (!dateStr) return '';
   
   // Clean up any potential whitespace
-  const trimmed = dateStr.trim();
+  let trimmed = dateStr.trim();
+  
+  // Strip any time part if it is an ISO string to avoid timezone shifting
+  if (trimmed.includes('T')) {
+    trimmed = trimmed.split('T')[0];
+  }
   
   // Check if it's already in DD/MM/YYYY
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {

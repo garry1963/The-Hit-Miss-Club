@@ -27,6 +27,11 @@ function CountdownTimer({ eventDate, eventTime }: CountdownTimerProps) {
     const parseTargetDate = () => {
       let normalizedDate = eventDate.trim();
       
+      // Strip any time part if it is an ISO string to avoid timezone shifting
+      if (normalizedDate.includes('T')) {
+        normalizedDate = normalizedDate.split('T')[0];
+      }
+
       // Handle DD/MM/YYYY
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
         const [d, m, y] = normalizedDate.split('/');
@@ -190,6 +195,12 @@ export default function HomeTab({
     if (!targetDateStr) return false;
 
     let dateToCompare = targetDateStr.trim();
+    
+    // Strip time portion if it's an ISO string to avoid timezone shifting
+    if (dateToCompare.includes('T')) {
+      dateToCompare = dateToCompare.split('T')[0];
+    }
+
     const ymdRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
     
     if (!ymdRegex.test(dateToCompare)) {
@@ -215,9 +226,9 @@ export default function HomeTab({
     return dateToCompare < todayStr;
   };
 
-  // Find closest upcoming event that has not ended yet
+  // Find closest upcoming event that has not ended yet for the active season
   const upcomingEvents = events
-    .filter(e => e.status === 'Upcoming' && !hasEventEnded(e))
+    .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status === 'Upcoming' && !hasEventEnded(e))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const spotlightEvent = upcomingEvents[0];
