@@ -48,7 +48,7 @@ export default function EventsTab({
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [time, setTime] = useState('');
+  const [time, setTime] = useState('12:00 AM GMT');
   const [courseId, setCourseId] = useState('');
   const [roundsCount, setRoundsCount] = useState(1);
   const [format, setFormat] = useState<'Stableford' | 'Stroke Play' | 'Modified Stableford'>('Stableford');
@@ -81,7 +81,7 @@ export default function EventsTab({
     setTitle('');
     setStartDate('');
     setEndDate('');
-    setTime('');
+    setTime('12:00 AM GMT');
     setCourseId(courses[0]?.id || '');
     setRoundsCount(1);
     setFormat('Stableford');
@@ -236,7 +236,7 @@ export default function EventsTab({
           ? formatStr 
           : 'Stableford') as 'Stableford' | 'Stroke Play' | 'Modified Stableford';
         
-        const teeTime = parts[7]?.trim() || '09:00';
+        const teeTime = parts[7]?.trim() || '12:00 AM GMT';
         const limitPlayers = parseInt(parts[8]?.trim() || '16');
         const statusStr = parts[9]?.trim() || 'Upcoming';
         const finalStatus = (statusStr === 'Completed' ? 'Completed' : 'Upcoming') as 'Upcoming' | 'Completed';
@@ -653,7 +653,7 @@ export default function EventsTab({
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-stone-400" />
-                      <span>Tee off: {ev.time}</span>
+                      <span>Tee off: 12:00 AM GMT</span>
                     </div>
                     <div className="flex items-center gap-1.5 col-span-2">
                       <MapPin className="w-3.5 h-3.5 text-stone-400" />

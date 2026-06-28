@@ -38,31 +38,10 @@ function CountdownTimer({ eventDate, eventTime }: CountdownTimerProps) {
         normalizedDate = `${y}-${m}-${d}`;
       }
 
-      let hours = 9; // Default to 9:00 AM tee off if unspecified
-      let minutes = 0;
-
-      if (eventTime) {
-        // Strip emojis like ⏱️
-        const cleanTime = eventTime.replace(/[^\D]*⏱️\s*/, '').trim();
-        const match24 = cleanTime.match(/^(\d{1,2}):(\d{2})$/);
-        if (match24) {
-          hours = parseInt(match24[1], 10);
-          minutes = parseInt(match24[2], 10);
-        } else {
-          const match12 = cleanTime.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)$/i);
-          if (match12) {
-            hours = parseInt(match12[1], 10);
-            minutes = match12[2] ? parseInt(match12[2], 10) : 0;
-            const ampm = match12[3].toUpperCase();
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-          }
-        }
-      }
-
       const parts = normalizedDate.split('-').map(Number);
       if (parts.length === 3) {
-        return new Date(parts[0], parts[1] - 1, parts[2], hours, minutes, 0);
+        // Return date parsed in UTC at midnight GMT (00:00:00)
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0));
       }
       return new Date(eventDate);
     };
@@ -404,7 +383,7 @@ export default function HomeTab({
           classification: row.type,
           status: 'Upcoming' as const,
           notes: row.notes.trim() || '',
-          time: '09:00 AM'
+          time: '12:00 AM GMT'
         };
         await addEvent(payload);
       }
@@ -641,7 +620,7 @@ export default function HomeTab({
                   <div className="flex items-center gap-2">
                     <span className="text-[#fbbf24] font-mono text-xs w-16 uppercase">Tee Time:</span>
                     <span className="bg-stone-800 border border-stone-700 px-2 py-0.5 rounded text-xs font-mono text-yellow-400">
-                      ⏱️ {spotlightEvent.time}
+                      ⏱️ 12:00 AM GMT
                     </span>
                   </div>
                 </div>
