@@ -256,9 +256,9 @@ export function useSocietyState() {
         if (data.adminPassword) setAdminPassword(data.adminPassword);
         if (data.activeSeasonId) setActiveSeasonId(data.activeSeasonId);
       } else {
-        setDoc(doc(db, 'settings', 'config'), { adminPassword: 'admin', activeSeasonId: '' }).catch(err => {
-          handleFirestoreError(err, OperationType.WRITE, 'settings/config');
-        });
+        // Document doesn't exist on server yet. Do not write a default doc here as that causes offline/cold-cache
+        // clients to overwrite custom server passwords back to default 'admin'. Just use local state defaults.
+        console.log("Settings config document not found in Firestore. Using local cached or default values.");
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'settings/config');
