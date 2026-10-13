@@ -402,7 +402,9 @@ export default function EventsTab({
                 {courses.length === 0 ? (
                   <option value="">No courses registered. Insert one first.</option>
                 ) : (
-                  courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                  [...courses]
+                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+                    .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
                 )}
               </select>
             </div>

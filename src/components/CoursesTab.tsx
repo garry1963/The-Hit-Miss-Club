@@ -3,8 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { MapPin, Globe, Plus, Trash2, Edit, ChevronRight, Award, Info, Sparkles } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  MapPin, 
+  Globe, 
+  Plus, 
+  Trash2, 
+  Edit, 
+  ChevronRight, 
+  Award, 
+  Info, 
+  Sparkles,
+  ArrowDownAZ,
+  ArrowUpZA,
+  ArrowUpDown,
+  Search,
+  X,
+  RotateCcw
+} from 'lucide-react';
 import { GolfCourse } from '../types';
 
 interface CoursesTabProps {
@@ -27,6 +43,11 @@ export default function CoursesTab({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState<GolfCourse | null>(null);
   const [formError, setFormError] = useState('');
+
+  // Sorting & Filtering states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDifficulty, setFilterDifficulty] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<'default' | 'name-asc' | 'name-desc' | 'par-asc' | 'par-desc' | 'difficulty'>('default');
 
   // Form states
   const [name, setName] = useState('');
@@ -100,6 +121,60 @@ export default function CoursesTab({
     }
 
     resetForm();
+  };
+
+  // Memoized filtered & sorted courses
+  const filteredAndSortedCourses = useMemo(() => {
+    let result = [...courses];
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.location.toLowerCase().includes(q) ||
+        (c.description && c.description.toLowerCase().includes(q))
+      );
+    }
+
+    // Filter by difficulty
+    if (filterDifficulty !== 'All') {
+      result = result.filter(c => c.difficulty === filterDifficulty);
+    }
+
+    // Sort order
+    switch (sortBy) {
+      case 'name-asc':
+        result.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        break;
+      case 'name-desc':
+        result.sort((a, b) => b.name.localeCompare(a.name, undefined, { sensitivity: 'base' }));
+        break;
+      case 'par-asc':
+        result.sort((a, b) => a.par - b.par);
+        break;
+      case 'par-desc':
+        result.sort((a, b) => b.par - a.par);
+        break;
+      case 'difficulty': {
+        const diffWeight: Record<string, number> = { Easy: 1, Medium: 2, Hard: 3 };
+        result.sort((a, b) => (diffWeight[a.difficulty] || 0) - (diffWeight[b.difficulty] || 0));
+        break;
+      }
+      case 'default':
+      default:
+        break;
+    }
+
+    return result;
+  }, [courses, searchQuery, filterDifficulty, sortBy]);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || filterDifficulty !== 'All' || sortBy !== 'default';
+
+  const resetFiltersAndSort = () => {
+    setSearchQuery('');
+    setFilterDifficulty('All');
+    setSortBy('default');
   };
 
   const activeCourse = courses.find(c => c.id === selectedCourseId);
@@ -256,101 +331,267 @@ export default function CoursesTab({
         </div>
       )}
 
-      {/* 3. Course Catalog list cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => {
-          const isSelected = selectedCourseId === course.id;
+      {/* 3. Filter, Search & Alphabetical Sorting Toolbar */}
+      <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 space-y-3 shadow-xs">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Search box */}
+          <div className="relative text-xs flex-1 max-w-md">
+            <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search golf courses by name, location..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-white border border-stone-200 rounded-xl pl-9 pr-8 py-2 w-full text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-emerald-800 transition text-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
-          return (
-            <div
-              key={course.id}
-              onClick={() => setSelectedCourseId(course.id)}
-              className={`bg-white rounded-2xl border transition-all cursor-pointer hover:shadow-md flex flex-col justify-between overflow-hidden group ${
-                isSelected 
-                  ? 'ring-2 ring-[#fbbf24] border-transparent shadow-md' 
-                  : 'border-stone-150 hover:border-[#fbbf24]/40 shadow-sm'
-              }`}
-              id={`course-entry-${course.id}`}
-            >
-              
-              {/* Media header block */}
-              <div className="h-44 overflow-hidden relative select-none">
-                <img 
-                  src={course.imageUrl} 
-                  alt={course.name} 
-                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "https://picsum.photos/seed/golfcourse/600/400";
-                  }}
-                />
-                
-                {/* Par Tag overlay */}
-                <div className="absolute top-3 right-3 flex gap-2">
-                  <span className={`px-2.5 py-1 rounded text-[10px] font-bold font-mono tracking-wider border shadow-md inline-block uppercase bg-emerald-950 text-white border-emerald-800`}>
-                    🛡️ PAR {course.par}
-                  </span>
-                  
-                  <span className={`px-2 py-1 rounded text-[10px] font-bold font-mono tracking-wider border shadow-md inline-block uppercase ${
-                    course.difficulty === 'Hard' ? 'bg-red-900/90 text-red-100 border-red-750' :
-                    course.difficulty === 'Medium' ? 'bg-amber-800/90 text-amber-100 border-amber-700' :
-                    'bg-slate-800/90 text-slate-100 border-slate-700'
-                  }`}>
-                    {course.difficulty} Grid
-                  </span>
-                </div>
-              </div>
-
-              {/* Course context description */}
-              <div className="p-5 flex-1 flex flex-col justify-between gap-5">
-                <div className="space-y-2">
-                  <h3 className="font-display font-medium text-stone-900 group-hover:text-emerald-800 text-base sm:text-lg leading-tight uppercase font-bold">
-                    {course.name}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-xs text-stone-500 font-sans">
-                    <MapPin className="w-3.5 h-3.5 text-[#fbbf24] flex-shrink-0" />
-                    <span>{course.location}</span>
-                  </div>
-                  <p className="text-stone-605 text-xs font-sans leading-relaxed line-clamp-3">
-                    {course.description}
-                  </p>
-                </div>
-
-                <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold text-[#fbbf24] uppercase tracking-widest flex items-center gap-1">
-                    <span>View Board Advice & Notes</span>
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
-
-                  {/* Inline Admin modifiers */}
-                  {isAdmin && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => handleEditClick(course, e)}
-                        className="p-1.5 rounded hover:bg-stone-50 text-stone-400 hover:text-emerald-700"
-                        title="Edit course registry"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteCourse(course.id);
-                        }}
-                        className="p-1.5 rounded hover:bg-stone-50 text-stone-400 hover:text-red-600"
-                        title="Delete course registry"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
+          {/* Filters & Sorting controls */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Difficulty Filter */}
+            <div className="text-xs flex items-center gap-1.5">
+              <span className="text-stone-500 font-mono uppercase text-[10px] font-semibold">Grid:</span>
+              <select
+                value={filterDifficulty}
+                onChange={e => setFilterDifficulty(e.target.value)}
+                className="bg-white border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-800 font-medium focus:outline-none focus:border-emerald-800 cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Difficulties</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
             </div>
-          );
-        })}
+
+            {/* Sort Dropdown with Alphabetical Sorting Options */}
+            <div className="text-xs flex items-center gap-1.5 bg-stone-100/70 p-1 rounded-xl border border-stone-200/80 pl-2.5">
+              <span className="text-stone-500 font-mono uppercase text-[10px] font-bold flex items-center gap-1">
+                <ArrowUpDown className="w-3 h-3 text-stone-500" />
+                <span>Sort:</span>
+              </span>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as any)}
+                className="bg-white border border-stone-200 rounded-lg px-2.5 py-1 text-xs text-stone-800 font-medium focus:outline-none focus:border-emerald-800 cursor-pointer shadow-2xs"
+                id="course-sort-select"
+                aria-label="Sort golf courses"
+              >
+                <option value="default">Default Order</option>
+                <option value="name-asc">Alphabetical (A → Z)</option>
+                <option value="name-desc">Alphabetical (Z → A)</option>
+                <option value="par-asc">Par (Lowest First)</option>
+                <option value="par-desc">Par (Highest First)</option>
+                <option value="difficulty">Difficulty</option>
+              </select>
+            </div>
+
+            {/* Dedicated Alphabetical Sort Toggle Button */}
+            <button
+              type="button"
+              id="alphabetical-sort-toggle"
+              onClick={() => {
+                if (sortBy === 'name-asc') {
+                  setSortBy('name-desc');
+                } else if (sortBy === 'name-desc') {
+                  setSortBy('default');
+                } else {
+                  setSortBy('name-asc');
+                }
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border transition-all cursor-pointer shadow-2xs ${
+                sortBy === 'name-asc' || sortBy === 'name-desc'
+                  ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
+                  : 'bg-white text-stone-700 border-stone-200 hover:border-emerald-700 hover:text-emerald-900'
+              }`}
+              title="Toggle alphabetical order (A-Z / Z-A / Default)"
+            >
+              {sortBy === 'name-desc' ? (
+                <>
+                  <ArrowUpZA className="w-4 h-4 text-[#fbbf24]" />
+                  <span>A-Z: Z → A</span>
+                </>
+              ) : sortBy === 'name-asc' ? (
+                <>
+                  <ArrowDownAZ className="w-4 h-4 text-[#fbbf24]" />
+                  <span>A-Z: A → Z</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDownAZ className="w-4 h-4 text-emerald-800" />
+                  <span>Sort A-Z</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Status / Active Sort Indicator Bar */}
+        <div className="flex flex-wrap items-center justify-between text-xs text-stone-500 pt-2 border-t border-stone-200/60 gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span>
+              Showing <strong className="text-stone-800">{filteredAndSortedCourses.length}</strong> of <strong className="text-stone-800">{courses.length}</strong> courses
+            </span>
+
+            {sortBy === 'name-asc' && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
+                <ArrowDownAZ className="w-3 h-3 text-[#fbbf24]" />
+                Sorted Alphabetically (A → Z)
+              </span>
+            )}
+
+            {sortBy === 'name-desc' && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
+                <ArrowUpZA className="w-3 h-3 text-[#fbbf24]" />
+                Sorted Alphabetically (Z → A)
+              </span>
+            )}
+
+            {sortBy === 'par-asc' && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-stone-100 text-stone-700 border border-stone-200 px-2 py-0.5 rounded-full font-medium">
+                Par (Low to High)
+              </span>
+            )}
+
+            {sortBy === 'par-desc' && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-stone-100 text-stone-700 border border-stone-200 px-2 py-0.5 rounded-full font-medium">
+                Par (High to Low)
+              </span>
+            )}
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFiltersAndSort}
+              className="text-stone-500 hover:text-emerald-800 text-[11px] font-semibold flex items-center gap-1 underline transition cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset sorting & filters</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* 4. Course Catalog list cards or Empty State */}
+      {filteredAndSortedCourses.length === 0 ? (
+        <div className="bg-stone-50 border border-dashed border-stone-300 rounded-2xl p-12 text-center space-y-3">
+          <p className="text-stone-600 font-medium text-sm">
+            No golf courses match your current search or filter criteria.
+          </p>
+          <button
+            type="button"
+            onClick={resetFiltersAndSort}
+            className="text-xs font-bold text-emerald-800 hover:text-emerald-950 uppercase tracking-wider underline cursor-pointer"
+          >
+            Reset Filters & View All Courses
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedCourses.map((course) => {
+            const isSelected = selectedCourseId === course.id;
+
+            return (
+              <div
+                key={course.id}
+                onClick={() => setSelectedCourseId(course.id)}
+                className={`bg-white rounded-2xl border transition-all cursor-pointer hover:shadow-md flex flex-col justify-between overflow-hidden group ${
+                  isSelected 
+                    ? 'ring-2 ring-[#fbbf24] border-transparent shadow-md' 
+                    : 'border-stone-150 hover:border-[#fbbf24]/40 shadow-sm'
+                }`}
+                id={`course-entry-${course.id}`}
+              >
+                
+                {/* Media header block */}
+                <div className="h-44 overflow-hidden relative select-none">
+                  <img 
+                    src={course.imageUrl} 
+                    alt={course.name} 
+                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://picsum.photos/seed/golfcourse/600/400";
+                    }}
+                  />
+                  
+                  {/* Par Tag overlay */}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <span className={`px-2.5 py-1 rounded text-[10px] font-bold font-mono tracking-wider border shadow-md inline-block uppercase bg-emerald-950 text-white border-emerald-800`}>
+                      🛡️ PAR {course.par}
+                    </span>
+                    
+                    <span className={`px-2 py-1 rounded text-[10px] font-bold font-mono tracking-wider border shadow-md inline-block uppercase ${
+                      course.difficulty === 'Hard' ? 'bg-red-900/90 text-red-100 border-red-750' :
+                      course.difficulty === 'Medium' ? 'bg-amber-800/90 text-amber-100 border-amber-700' :
+                      'bg-slate-800/90 text-slate-100 border-slate-700'
+                    }`}>
+                      {course.difficulty} Grid
+                    </span>
+                  </div>
+                </div>
+
+                {/* Course context description */}
+                <div className="p-5 flex-1 flex flex-col justify-between gap-5">
+                  <div className="space-y-2">
+                    <h3 className="font-display font-medium text-stone-900 group-hover:text-emerald-800 text-base sm:text-lg leading-tight uppercase font-bold">
+                      {course.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs text-stone-500 font-sans">
+                      <MapPin className="w-3.5 h-3.5 text-[#fbbf24] flex-shrink-0" />
+                      <span>{course.location}</span>
+                    </div>
+                    <p className="text-stone-605 text-xs font-sans leading-relaxed line-clamp-3">
+                      {course.description}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold text-[#fbbf24] uppercase tracking-widest flex items-center gap-1">
+                      <span>View Board Advice & Notes</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </span>
+
+                    {/* Inline Admin modifiers */}
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => handleEditClick(course, e)}
+                          className="p-1.5 rounded hover:bg-stone-50 text-stone-400 hover:text-emerald-700"
+                          title="Edit course registry"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteCourse(course.id);
+                          }}
+                          className="p-1.5 rounded hover:bg-stone-50 text-stone-400 hover:text-red-600"
+                          title="Delete course registry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 4. Single Course detailed popup screen overlay in a high-contrast, backdrop-blurred modal */}
       {activeCourse && (
