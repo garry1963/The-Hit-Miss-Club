@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer, Archive, BookOpen } from 'lucide-react';
+import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer, Archive, BookOpen, Sparkles, Search, Check, X, Star } from 'lucide-react';
 import { Event, NewsArticle, Member, StandingsRow, Division, StandingEntry } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
 
@@ -210,7 +210,29 @@ export default function HomeTab({
     .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status === 'Upcoming' && !hasEventEnded(e))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const spotlightEvent = upcomingEvents[0];
+  // Spotlight fixture resolution:
+  // 1. Manually selected fixture from siteContent.spotlight_event_id (if not 'auto')
+  // 2. Fixture flagged with isSpotlight === true
+  // 3. Fallback: closest upcoming event for the active season
+  // 4. Any upcoming event or any event
+  const spotlightEvent = React.useMemo(() => {
+    const configuredId = siteContent?.spotlight_event_id;
+    if (configuredId && configuredId !== 'auto') {
+      const match = events.find(e => e.id === configuredId);
+      if (match) return match;
+    }
+    const markedEvent = events.find(e => (e as any).isSpotlight);
+    if (markedEvent) return markedEvent;
+
+    return upcomingEvents[0] || events.find(e => e.status === 'Upcoming') || events[0] || null;
+  }, [events, siteContent?.spotlight_event_id, upcomingEvents]);
+
+  const isManuallySpotlighted = Boolean(
+    siteContent?.spotlight_event_id &&
+    siteContent.spotlight_event_id !== 'auto' &&
+    events.some(e => e.id === siteContent.spotlight_event_id)
+  );
+
   const spotlightCourse = spotlightEvent
     ? courses.find(c => c.id === spotlightEvent.courseId)
     : null;
@@ -322,6 +344,9 @@ export default function HomeTab({
   const [draftHeroTitle, setDraftHeroTitle] = React.useState('');
   const [draftHeroSubtitle, setDraftHeroSubtitle] = React.useState('');
   const [draftSpotlightTitle, setDraftSpotlightTitle] = React.useState('');
+  const [draftSpotlightEventId, setDraftSpotlightEventId] = React.useState('auto');
+  const [showSpotlightPickerModal, setShowSpotlightPickerModal] = React.useState(false);
+  const [spotlightPickerSearch, setSpotlightPickerSearch] = React.useState('');
   const [draftCtaTitle, setDraftCtaTitle] = React.useState('');
   const [draftCtaBody, setDraftCtaBody] = React.useState('');
 
@@ -408,6 +433,7 @@ export default function HomeTab({
       setDraftHeroTitle(siteContent.home_hero_title || "The Hit & Miss Club");
       setDraftHeroSubtitle(siteContent.home_hero_subtitle || "Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.");
       setDraftSpotlightTitle(siteContent.home_fixture_card_title || "★ Spotlight Fixture");
+      setDraftSpotlightEventId(siteContent.spotlight_event_id || 'auto');
       setDraftCtaTitle(siteContent.home_cta_title || "Interested in Joining the Society?");
       setDraftCtaBody(siteContent.home_cta_body || "The Hit & Miss Club is always delighted to welcome prospective golfers, whether you play off single figures or are just finding your way back to 28+. Enjoy balanced tournaments, friendly reviews, and structured handicapping.");
     }
@@ -419,6 +445,7 @@ export default function HomeTab({
     updateSiteContent('home_hero_title', draftHeroTitle);
     updateSiteContent('home_hero_subtitle', draftHeroSubtitle);
     updateSiteContent('home_fixture_card_title', draftSpotlightTitle);
+    updateSiteContent('spotlight_event_id', draftSpotlightEventId);
     updateSiteContent('home_cta_title', draftCtaTitle);
     updateSiteContent('home_cta_body', draftCtaBody);
     setIsEditingTexts(false);
@@ -598,15 +625,34 @@ export default function HomeTab({
           </div>
           
           <div className="space-y-6">
-            <div className="inline-block bg-[#fbbf24]/20 border border-[#fbbf24]/50 text-[#fbbf24] px-3 py-1 rounded text-[10px] font-mono uppercase tracking-widest font-bold">
-              {siteContent?.home_fixture_card_title || "★ Spotlight Fixture"}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="inline-block bg-[#fbbf24]/20 border border-[#fbbf24]/50 text-[#fbbf24] px-3 py-1 rounded text-[10px] font-mono uppercase tracking-widest font-bold">
+                {siteContent?.home_fixture_card_title || "★ Spotlight Fixture"}
+              </div>
+
+              {isManuallySpotlighted ? (
+                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider flex items-center gap-1 font-semibold">
+                  📌 Pinned Fixture
+                </span>
+              ) : (
+                <span className="bg-stone-800 text-stone-400 border border-stone-700 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider">
+                  ⚡ Auto
+                </span>
+              )}
             </div>
             
             {spotlightEvent ? (
               <div className="space-y-4">
-                <h3 className="font-display font-bold text-2xl text-stone-100 tracking-tight">
-                  {spotlightEvent.title}
-                </h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-display font-bold text-2xl text-stone-100 tracking-tight">
+                    {spotlightEvent.title}
+                  </h3>
+                  {spotlightEvent.classification && (
+                    <span className="shrink-0 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                      {spotlightEvent.classification}
+                    </span>
+                  )}
+                </div>
                 
                 <div className="space-y-2 text-sm text-stone-300 font-sans">
                   <div className="flex items-center gap-2">
@@ -639,7 +685,7 @@ export default function HomeTab({
             )}
           </div>
 
-          <div className="pt-6 mt-6 border-t border-stone-800 flex items-center justify-between">
+          <div className="pt-6 mt-6 border-t border-stone-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <button
               onClick={() => setCurrentTab('events')}
               className="text-white hover:text-[#fbbf24] font-display font-medium text-xs uppercase tracking-wider flex items-center gap-1 group transition-colors"
@@ -647,6 +693,31 @@ export default function HomeTab({
               <span>View Tournament Details</span>
               <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
+
+            {isAdmin && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSpotlightPickerModal(true)}
+                  className="bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/50 hover:border-amber-400 px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  title="Choose which tournament fixture to highlight here"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Select Spotlight</span>
+                </button>
+
+                {isManuallySpotlighted && (
+                  <button
+                    type="button"
+                    onClick={() => updateSiteContent('spotlight_event_id', 'auto')}
+                    className="text-stone-400 hover:text-white text-[11px] underline font-mono cursor-pointer transition-colors"
+                    title="Revert to closest upcoming fixture"
+                  >
+                    Reset Auto
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -958,6 +1029,31 @@ export default function HomeTab({
               </div>
 
               <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-700 uppercase tracking-wider block">Featured Spotlight Fixture</label>
+                  <span className="text-[10px] text-stone-500 font-mono">Homepage Card Fixture</span>
+                </div>
+                <select
+                  value={draftSpotlightEventId}
+                  onChange={e => setDraftSpotlightEventId(e.target.value)}
+                  className="w-full bg-white border border-stone-250 py-2.5 px-3.5 rounded-xl text-stone-900 font-sans text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="auto">⚡ Auto (Closest Upcoming Fixture)</option>
+                  {events.map(ev => {
+                    const c = courses.find(course => course.id === ev.courseId);
+                    return (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.date} — {ev.title} ({c?.name || 'Unknown Course'}) [{ev.classification || 'Standard'} &middot; {ev.status}]
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-[11px] text-stone-500 italic">
+                  Select a specific tournament fixture to pin to the spotlight card, or choose Auto to dynamically feature the nearest upcoming fixture.
+                </p>
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 uppercase tracking-wider block">Membership CTA Button Banner Header</label>
                 <input
                   type="text"
@@ -995,6 +1091,199 @@ export default function HomeTab({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Spotlight Fixture Selection Modal */}
+      {showSpotlightPickerModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white text-stone-900 rounded-3xl border-2 border-amber-400/80 shadow-2xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col text-left relative">
+            <button
+              onClick={() => {
+                setShowSpotlightPickerModal(false);
+                setSpotlightPickerSearch('');
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition cursor-pointer"
+              type="button"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="border-b border-stone-200 pb-4 pr-8">
+              <div className="inline-block bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest font-bold mb-1.5">
+                ★ Admin Spotlight Controls
+              </div>
+              <h3 className="font-display font-black text-xl uppercase tracking-tight text-stone-900 flex items-center gap-2">
+                <span>Select Spotlight Fixture</span>
+              </h3>
+              <p className="text-xs text-stone-500 mt-1">
+                Choose which tournament fixture is prominently featured on the society homepage. Changes update in real-time across all devices.
+              </p>
+            </div>
+
+            {/* Quick Auto Option */}
+            <div className="pt-4 pb-2">
+              <div 
+                onClick={() => {
+                  updateSiteContent('spotlight_event_id', 'auto');
+                  setShowSpotlightPickerModal(false);
+                  setSpotlightPickerSearch('');
+                }}
+                className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  !isManuallySpotlighted
+                    ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-400/20'
+                    : 'bg-stone-50 border-stone-200 hover:border-amber-300'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs uppercase text-stone-900 flex items-center gap-1.5">
+                      <span>⚡ Auto-Detect (Closest Upcoming Fixture)</span>
+                    </span>
+                    {!isManuallySpotlighted && (
+                      <span className="bg-amber-400 text-stone-900 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded">
+                        Active Mode
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-stone-500">
+                    Dynamically chooses the nearest chronological fixture that has not concluded yet.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition ${
+                    !isManuallySpotlighted
+                      ? 'bg-amber-400 text-stone-900 shadow-xs'
+                      : 'bg-stone-200 text-stone-700 hover:bg-amber-400 hover:text-stone-900'
+                  }`}
+                >
+                  {!isManuallySpotlighted ? 'Selected' : 'Use Auto'}
+                </button>
+              </div>
+            </div>
+
+            {/* Search filter for fixtures */}
+            <div className="relative my-2">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-stone-400" />
+              <input
+                type="text"
+                placeholder="Search fixtures by tournament name or venue..."
+                value={spotlightPickerSearch}
+                onChange={e => setSpotlightPickerSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-amber-400 focus:bg-white"
+              />
+            </div>
+
+            {/* Fixture List */}
+            <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
+              {events
+                .filter(ev => {
+                  if (!spotlightPickerSearch.trim()) return true;
+                  const q = spotlightPickerSearch.toLowerCase();
+                  const c = courses.find(course => course.id === ev.courseId);
+                  return ev.title.toLowerCase().includes(q) || (c && c.name.toLowerCase().includes(q));
+                })
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                .map(ev => {
+                  const c = courses.find(course => course.id === ev.courseId);
+                  const isCurrentActive = spotlightEvent?.id === ev.id;
+                  const isExplicitlyPinned = siteContent?.spotlight_event_id === ev.id;
+
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={() => {
+                        updateSiteContent('spotlight_event_id', ev.id);
+                        setShowSpotlightPickerModal(false);
+                        setSpotlightPickerSearch('');
+                      }}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isExplicitlyPinned
+                          ? 'bg-amber-50 border-amber-400 shadow-sm ring-1 ring-amber-400/40'
+                          : isCurrentActive
+                            ? 'bg-stone-50 border-amber-300'
+                            : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50/60'
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-xs uppercase text-stone-900 truncate">
+                            {ev.title}
+                          </span>
+                          {ev.classification === 'Major' ? (
+                            <span className="bg-amber-100 text-amber-800 text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border border-amber-200">
+                              🏆 Major
+                            </span>
+                          ) : ev.classification === 'Qualifier' ? (
+                            <span className="bg-purple-100 text-purple-800 text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border border-purple-200">
+                              ⭐ Qualifier
+                            </span>
+                          ) : (
+                            <span className="bg-stone-100 text-stone-600 text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded">
+                              {ev.classification || 'Standard'}
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                            ev.status === 'Completed' ? 'bg-stone-100 text-stone-500' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {ev.status}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-[11px] text-stone-500 font-sans">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-stone-400" />
+                            {formatAppDate(ev.date)}
+                          </span>
+                          <span className="truncate">
+                            ⛳ {c?.name || 'Unknown Course'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        {isExplicitlyPinned ? (
+                          <span className="bg-amber-400 text-stone-900 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs">
+                            <Check className="w-3.5 h-3.5" />
+                            Pinned
+                          </span>
+                        ) : isCurrentActive ? (
+                          <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-bold uppercase px-2 py-1 rounded-lg">
+                            Auto Pick
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="bg-stone-100 hover:bg-amber-400 hover:text-stone-900 text-stone-700 text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg transition cursor-pointer"
+                          >
+                            Spotlight
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              {events.length === 0 && (
+                <p className="text-xs text-stone-400 italic py-6 text-center">
+                  No tournament fixtures found. Create one in the Events tab first.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-stone-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSpotlightPickerModal(false);
+                  setSpotlightPickerSearch('');
+                }}
+                className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold uppercase py-2 px-4 rounded-xl text-xs tracking-wider border border-stone-200 transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

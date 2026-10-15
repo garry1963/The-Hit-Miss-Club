@@ -19,6 +19,8 @@ interface EventsTabProps {
   updateEvent: (updated: Event) => void;
   deleteEvent: (id: string) => void;
   setCurrentTab: (tab: string) => void;
+  siteContent?: Record<string, string>;
+  updateSiteContent?: (key: string, val: string) => void;
 }
 
 export default function EventsTab({
@@ -31,7 +33,9 @@ export default function EventsTab({
   addEvent,
   updateEvent,
   deleteEvent,
-  setCurrentTab
+  setCurrentTab,
+  siteContent,
+  updateSiteContent
 }: EventsTabProps) {
   // Local states
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -57,12 +61,30 @@ export default function EventsTab({
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'Upcoming' | 'Completed'>('Upcoming');
   const [eventSeasonId, setEventSeasonId] = useState(activeSeasonId);
+  const [isSpotlightForm, setIsSpotlightForm] = useState(false);
 
   useEffect(() => {
     if (!editingEvent) {
       setEventSeasonId(activeSeasonId);
     }
   }, [activeSeasonId, editingEvent]);
+
+  // Spotlight active resolution for EventsTab
+  const configuredSpotlightId = siteContent?.spotlight_event_id;
+  const isManuallyPinned = Boolean(configuredSpotlightId && configuredSpotlightId !== 'auto');
+  
+  const currentSpotlightEvent = React.useMemo(() => {
+    if (configuredSpotlightId && configuredSpotlightId !== 'auto') {
+      const match = events.find(e => e.id === configuredSpotlightId);
+      if (match) return match;
+    }
+    const marked = events.find(e => (e as any).isSpotlight);
+    if (marked) return marked;
+
+    return events
+      .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status === 'Upcoming')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] || events[0] || null;
+  }, [events, configuredSpotlightId, activeSeasonId]);
 
   // Filter events of activeSeasonId
   const filteredEvents = events
@@ -90,6 +112,7 @@ export default function EventsTab({
     setNotes('');
     setStatus('Upcoming');
     setEventSeasonId(activeSeasonId);
+    setIsSpotlightForm(false);
     setEditingEvent(null);
     setShowAddForm(false);
     setFormError('');
@@ -110,6 +133,7 @@ export default function EventsTab({
     setNotes(e.notes || '');
     setStatus(e.status);
     setEventSeasonId(e.seasonId || activeSeasonId);
+    setIsSpotlightForm(siteContent?.spotlight_event_id === e.id || Boolean((e as any).isSpotlight));
     setShowAddForm(true);
   };
 
@@ -132,8 +156,11 @@ export default function EventsTab({
       classification,
       maxPlayers: Number(maxPlayers),
       notes,
-      status
+      status,
+      isSpotlight: isSpotlightForm
     };
+
+    let targetEventId = editingEvent?.id;
 
     if (editingEvent) {
       updateEvent({
@@ -142,8 +169,19 @@ export default function EventsTab({
       });
       alert('Tournament parameters updated successfully.');
     } else {
-      addEvent(payload);
+      const created = addEvent(payload);
+      if (created && created.id) {
+        targetEventId = created.id;
+      }
       alert('New tournament registered successfully.');
+    }
+
+    if (updateSiteContent) {
+      if (isSpotlightForm && targetEventId) {
+        updateSiteContent('spotlight_event_id', targetEventId);
+      } else if (!isSpotlightForm && editingEvent && siteContent?.spotlight_event_id === editingEvent.id) {
+        updateSiteContent('spotlight_event_id', 'auto');
+      }
     }
 
     resetForm();
@@ -525,6 +563,22 @@ export default function EventsTab({
               />
             </div>
 
+            <div className="md:col-span-12 flex items-center gap-2.5 p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl">
+              <input
+                type="checkbox"
+                id="isSpotlightFixtureForm"
+                checked={isSpotlightForm}
+                onChange={e => setIsSpotlightForm(e.target.checked)}
+                className="w-4 h-4 text-amber-600 rounded border-stone-300 focus:ring-amber-500 cursor-pointer"
+              />
+              <label htmlFor="isSpotlightFixtureForm" className="text-xs font-semibold text-stone-800 cursor-pointer select-none flex items-center gap-1.5 flex-wrap">
+                <span>🌟 Feature as Spotlight Fixture on Society Homepage</span>
+                <span className="text-[10px] text-stone-500 font-normal">
+                  (Sets this tournament to be featured in the Spotlight card on the Home screen)
+                </span>
+              </label>
+            </div>
+
             <div className="md:col-span-12 flex justify-end gap-2 mt-2">
               <button
                 type="button"
@@ -541,6 +595,37 @@ export default function EventsTab({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Spotlight Fixture Overview Ribbon */}
+      {currentSpotlightEvent && (
+        <div className="bg-stone-900 text-white rounded-xl p-3.5 sm:px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-amber-400/40 shadow-sm text-xs text-left">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-amber-400 font-bold flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+              <Sparkles className="w-3.5 h-3.5" />
+              Homepage Spotlight:
+            </span>
+            <span className="font-bold text-stone-100">{currentSpotlightEvent.title}</span>
+            <span className="text-stone-400 text-[11px]">({formatAppDate(currentSpotlightEvent.date)})</span>
+            {isManuallyPinned ? (
+              <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold">
+                📌 Pinned
+              </span>
+            ) : (
+              <span className="bg-stone-800 text-stone-400 border border-stone-700 text-[9px] font-mono px-1.5 py-0.5 rounded uppercase">
+                ⚡ Auto
+              </span>
+            )}
+          </div>
+          {isAdmin && updateSiteContent && isManuallyPinned && (
+            <button
+              onClick={() => updateSiteContent('spotlight_event_id', 'auto')}
+              className="text-[11px] text-stone-400 hover:text-white underline cursor-pointer"
+            >
+              Reset to Auto
+            </button>
+          )}
         </div>
       )}
 
@@ -595,25 +680,38 @@ export default function EventsTab({
           {filteredEvents.map((ev) => {
             const isSelected = selectedEventId === ev.id;
             const course = courses.find(c => c.id === ev.courseId);
+            const isCurrentSpotlight = currentSpotlightEvent?.id === ev.id;
+            const isExplicitlyPinned = configuredSpotlightId === ev.id;
             
             return (
               <div
                 key={ev.id}
                 onClick={() => setSelectedEventId(isSelected ? null : ev.id)}
                 className={`bg-white rounded-2xl border transition-all cursor-pointer overflow-hidden flex flex-col justify-between ${
-                  isSelected 
-                    ? 'border-emerald-800 ring-2 ring-emerald-800/10 shadow-lg scale-[1.01]' 
-                    : 'border-stone-205 hover:border-stone-350 shadow-sm'
+                  isExplicitlyPinned
+                    ? 'border-amber-400 ring-2 ring-amber-400/30 shadow-md'
+                    : isSelected 
+                      ? 'border-emerald-800 ring-2 ring-emerald-800/10 shadow-lg scale-[1.01]' 
+                      : 'border-stone-205 hover:border-stone-350 shadow-sm'
                 }`}
               >
                 {/* Visual Accent */}
-                <div className={`h-1.5 ${ev.status === 'Completed' ? 'bg-stone-400' : 'bg-[#fbbf24]'}`} />
+                <div className={`h-1.5 ${isCurrentSpotlight ? 'bg-amber-400' : ev.status === 'Completed' ? 'bg-stone-400' : 'bg-emerald-600'}`} />
 
                 <div className="p-5 space-y-4">
                   {/* Title Bar */}
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-0.5">
                       <span className="font-mono text-[10px] text-stone-400 uppercase tracking-wider flex flex-wrap items-center gap-1.5 font-bold mb-1">
+                        {isCurrentSpotlight && (
+                          <span className={`px-2 py-0.5 rounded font-black text-[9px] flex items-center gap-1 shadow-xs ${
+                            isExplicitlyPinned 
+                              ? 'bg-amber-400 text-stone-900 border border-amber-500' 
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                          }`}>
+                            ★ SPOTLIGHT {isExplicitlyPinned ? 'PINNED' : 'AUTO'}
+                          </span>
+                        )}
                         {ev.classification === 'Major' ? (
                           <span className="text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-black text-[9px]">
                             🏆 MAJOR
@@ -689,6 +787,41 @@ export default function EventsTab({
                       </button>
                     ) : (
                       <span className="text-stone-400 text-[9px] uppercase">Rounds open</span>
+                    )}
+
+                    {isAdmin && updateSiteContent && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isExplicitlyPinned) {
+                            updateSiteContent('spotlight_event_id', 'auto');
+                          } else {
+                            updateSiteContent('spotlight_event_id', ev.id);
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1 transition-all cursor-pointer ${
+                          isExplicitlyPinned
+                            ? 'bg-amber-400 text-stone-900 shadow-xs hover:bg-amber-300 font-extrabold'
+                            : isCurrentSpotlight
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
+                              : 'bg-stone-100 text-stone-600 hover:text-amber-800 hover:bg-amber-50 border border-stone-200'
+                        }`}
+                        title={
+                          isExplicitlyPinned
+                            ? "Currently pinned as Spotlight Fixture on Home. Click to unpin and return to auto."
+                            : "Set this tournament as the Spotlight Fixture on Home page"
+                        }
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-500" />
+                        <span>
+                          {isExplicitlyPinned
+                            ? '★ Spotlight Pinned'
+                            : isCurrentSpotlight
+                              ? '★ Spotlight (Auto)'
+                              : 'Set Spotlight'}
+                        </span>
+                      </button>
                     )}
 
                     {isAdmin && (

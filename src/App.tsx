@@ -66,6 +66,8 @@ export default function App() {
             updateEvent={state.updateEvent}
             deleteEvent={state.deleteEvent}
             setCurrentTab={setCurrentTab}
+            siteContent={state.siteContent}
+            updateSiteContent={state.updateSiteContent}
           />
         );
       case 'results':

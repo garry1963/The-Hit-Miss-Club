@@ -9,6 +9,7 @@ export const DEFAULT_SITE_CONTENT: Record<string, string> = {
   home_hero_title: "The Hit & Miss Club",
   home_hero_subtitle: "Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.",
   home_fixture_card_title: "★ Spotlight Fixture",
+  spotlight_event_id: "auto",
   home_cta_title: "Interested in Joining the Society?",
   home_cta_body: "The Hit & Miss Club is always delighted to welcome prospective golfers, whether you play off single figures or are just finding your way back to 28+. Enjoy balanced tournaments, friendly reviews, and structured handicapping.",
   home_members_spots: "Only 4 Slots Left!",

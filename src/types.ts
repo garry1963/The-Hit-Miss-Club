@@ -60,6 +60,7 @@ export interface Event {
   notes?: string;
   maxPlayers?: number;
   time?: string;
+  isSpotlight?: boolean;
 }
 
 export interface TournamentResult {
