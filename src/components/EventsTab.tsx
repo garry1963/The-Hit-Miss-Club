@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy, X, Sparkles, Globe } from 'lucide-react';
 import { Event, GolfCourse, Season } from '../types';
-import { formatAppDate } from '../utils/dateUtils';
+import { formatAppDate, isEventLive, isEventEnded } from '../utils/dateUtils';
 
 interface EventsTabProps {
   events: Event[];
@@ -41,7 +41,7 @@ export default function EventsTab({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [viewingCourse, setViewingCourse] = useState<GolfCourse | null>(null);
   const [filterFormat, setFilterFormat] = useState<string>('All');
-  const [filterStatus, setFilterStatus] = useState<'All' | 'Upcoming' | 'Completed'>('All');
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Live' | 'Upcoming' | 'Completed'>('All');
   
   // Form states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -59,7 +59,7 @@ export default function EventsTab({
   const [classification, setClassification] = useState<'Major' | 'Standard' | 'Alternate' | 'Qualifier'>('Standard');
   const [maxPlayers, setMaxPlayers] = useState(16);
   const [notes, setNotes] = useState('');
-  const [status, setStatus] = useState<'Upcoming' | 'Completed'>('Upcoming');
+  const [status, setStatus] = useState<'Upcoming' | 'Live' | 'Completed'>('Upcoming');
   const [eventSeasonId, setEventSeasonId] = useState(activeSeasonId);
   const [isSpotlightForm, setIsSpotlightForm] = useState(false);
 
@@ -69,11 +69,27 @@ export default function EventsTab({
     }
   }, [activeSeasonId, editingEvent]);
 
+  // Live tournament detection for EventsTab
+  const liveEvent = React.useMemo(() => {
+    const activeSeasonLive = events.filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && isEventLive(e));
+    if (activeSeasonLive.length > 0) {
+      return activeSeasonLive.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+    }
+    const anyLive = events.filter(e => isEventLive(e));
+    return anyLive[0] || null;
+  }, [events, activeSeasonId]);
+
   // Spotlight active resolution for EventsTab
   const configuredSpotlightId = siteContent?.spotlight_event_id;
   const isManuallyPinned = Boolean(configuredSpotlightId && configuredSpotlightId !== 'auto');
   
   const currentSpotlightEvent = React.useMemo(() => {
+    // 1. TOP PRIORITY: If a tournament is live, prioritise that tournament as the spotlight fixture!
+    if (liveEvent) {
+      return liveEvent;
+    }
+
+    // 2. Explicitly configured spotlight event
     if (configuredSpotlightId && configuredSpotlightId !== 'auto') {
       const match = events.find(e => e.id === configuredSpotlightId);
       if (match) return match;
@@ -82,15 +98,20 @@ export default function EventsTab({
     if (marked) return marked;
 
     return events
-      .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status === 'Upcoming')
+      .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status !== 'Completed' && !isEventEnded(e))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] || events[0] || null;
-  }, [events, configuredSpotlightId, activeSeasonId]);
+  }, [liveEvent, events, configuredSpotlightId, activeSeasonId]);
+
+  const isCurrentSpotlightLive = Boolean(currentSpotlightEvent && isEventLive(currentSpotlightEvent));
 
   // Filter events of activeSeasonId
   const filteredEvents = events
     .filter(e => e.seasonId === activeSeasonId)
     .filter(e => {
       if (filterStatus === 'All') return true;
+      if (filterStatus === 'Live') return isEventLive(e);
+      if (filterStatus === 'Upcoming') return (e.status === 'Upcoming' || !e.status) && !isEventEnded(e);
+      if (filterStatus === 'Completed') return e.status === 'Completed' || isEventEnded(e);
       return e.status === filterStatus;
     })
     .filter(e => {
@@ -548,6 +569,7 @@ export default function EventsTab({
                 className="bg-white border rounded px-3 py-2 text-stone-900 focus:outline-none"
               >
                 <option value="Upcoming">Upcoming / Inactive</option>
+                <option value="Live">🔴 Live / In Progress ⛳</option>
                 <option value="Completed">Completed / Closed</option>
               </select>
             </div>
@@ -600,15 +622,34 @@ export default function EventsTab({
 
       {/* Spotlight Fixture Overview Ribbon */}
       {currentSpotlightEvent && (
-        <div className="bg-stone-900 text-white rounded-xl p-3.5 sm:px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-amber-400/40 shadow-sm text-xs text-left">
+        <div className={`text-white rounded-xl p-3.5 sm:px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border shadow-sm text-xs text-left ${
+          isCurrentSpotlightLive
+            ? 'bg-red-950/90 border-red-500/50'
+            : 'bg-stone-900 border-amber-400/40'
+        }`}>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-amber-400 font-bold flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-              <Sparkles className="w-3.5 h-3.5" />
-              Homepage Spotlight:
+            <span className={`font-bold flex items-center gap-1.5 uppercase tracking-wider text-[11px] ${
+              isCurrentSpotlightLive ? 'text-red-300' : 'text-amber-400'
+            }`}>
+              {isCurrentSpotlightLive ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block animate-ping"></span>
+                  🔴 Live Spotlight Priority:
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Homepage Spotlight:
+                </>
+              )}
             </span>
             <span className="font-bold text-stone-100">{currentSpotlightEvent.title}</span>
             <span className="text-stone-400 text-[11px]">({formatAppDate(currentSpotlightEvent.date)})</span>
-            {isManuallyPinned ? (
+            {isCurrentSpotlightLive ? (
+              <span className="bg-red-500/20 text-red-200 border border-red-500/50 text-[9px] font-mono px-2 py-0.5 rounded uppercase font-bold animate-pulse">
+                🔴 Live Now
+              </span>
+            ) : isManuallyPinned ? (
               <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold">
                 📌 Pinned
               </span>
@@ -634,17 +675,17 @@ export default function EventsTab({
         
         {/* Status filtering switches */}
         <div className="flex border border-stone-200 rounded bg-white overflow-hidden text-xs p-0.5">
-          {(['All', 'Upcoming', 'Completed'] as const).map((st) => (
+          {(['All', 'Live', 'Upcoming', 'Completed'] as const).map((st) => (
             <button
               key={st}
               onClick={() => setFilterStatus(st)}
-              className={`px-4 py-1.5 rounded-md font-bold transition-all ${
+              className={`px-3 sm:px-4 py-1.5 rounded-md font-bold transition-all ${
                 filterStatus === st 
                   ? 'bg-emerald-800 text-white font-bold' 
                   : 'text-stone-600 hover:text-emerald-850 hover:bg-stone-50'
               }`}
             >
-              {st}
+              {st === 'Live' ? '🔴 Live' : st}
             </button>
           ))}
         </div>
@@ -682,21 +723,24 @@ export default function EventsTab({
             const course = courses.find(c => c.id === ev.courseId);
             const isCurrentSpotlight = currentSpotlightEvent?.id === ev.id;
             const isExplicitlyPinned = configuredSpotlightId === ev.id;
+            const isLive = isEventLive(ev);
             
             return (
               <div
                 key={ev.id}
                 onClick={() => setSelectedEventId(isSelected ? null : ev.id)}
                 className={`bg-white rounded-2xl border transition-all cursor-pointer overflow-hidden flex flex-col justify-between ${
-                  isExplicitlyPinned
-                    ? 'border-amber-400 ring-2 ring-amber-400/30 shadow-md'
-                    : isSelected 
-                      ? 'border-emerald-800 ring-2 ring-emerald-800/10 shadow-lg scale-[1.01]' 
-                      : 'border-stone-205 hover:border-stone-350 shadow-sm'
+                  isLive
+                    ? 'border-red-400 ring-2 ring-red-400/30 shadow-md'
+                    : isExplicitlyPinned
+                      ? 'border-amber-400 ring-2 ring-amber-400/30 shadow-md'
+                      : isSelected 
+                        ? 'border-emerald-800 ring-2 ring-emerald-800/10 shadow-lg scale-[1.01]' 
+                        : 'border-stone-205 hover:border-stone-350 shadow-sm'
                 }`}
               >
                 {/* Visual Accent */}
-                <div className={`h-1.5 ${isCurrentSpotlight ? 'bg-amber-400' : ev.status === 'Completed' ? 'bg-stone-400' : 'bg-emerald-600'}`} />
+                <div className={`h-1.5 ${isLive ? 'bg-red-500' : isCurrentSpotlight ? 'bg-amber-400' : ev.status === 'Completed' ? 'bg-stone-400' : 'bg-emerald-600'}`} />
 
                 <div className="p-5 space-y-4">
                   {/* Title Bar */}
@@ -705,11 +749,13 @@ export default function EventsTab({
                       <span className="font-mono text-[10px] text-stone-400 uppercase tracking-wider flex flex-wrap items-center gap-1.5 font-bold mb-1">
                         {isCurrentSpotlight && (
                           <span className={`px-2 py-0.5 rounded font-black text-[9px] flex items-center gap-1 shadow-xs ${
-                            isExplicitlyPinned 
-                              ? 'bg-amber-400 text-stone-900 border border-amber-500' 
-                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            isCurrentSpotlightLive
+                              ? 'bg-red-500 text-white animate-pulse'
+                              : isExplicitlyPinned 
+                                ? 'bg-amber-400 text-stone-900 border border-amber-500' 
+                                : 'bg-amber-100 text-amber-800 border border-amber-300'
                           }`}>
-                            ★ SPOTLIGHT {isExplicitlyPinned ? 'PINNED' : 'AUTO'}
+                            ★ SPOTLIGHT {isCurrentSpotlightLive ? 'LIVE' : isExplicitlyPinned ? 'PINNED' : 'AUTO'}
                           </span>
                         )}
                         {ev.classification === 'Major' ? (
@@ -736,12 +782,15 @@ export default function EventsTab({
                       </h3>
                     </div>
 
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase ${
-                      ev.status === 'Completed'
-                        ? 'bg-stone-105 text-stone-605 border border-stone-200'
-                        : 'bg-emerald-50 text-emerald-800 border border-emerald-150 animate-pulse'
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase flex items-center gap-1 ${
+                      isLive
+                        ? 'bg-red-50 text-red-700 border border-red-200 animate-pulse font-extrabold'
+                        : ev.status === 'Completed'
+                          ? 'bg-stone-105 text-stone-605 border border-stone-200'
+                          : 'bg-emerald-50 text-emerald-800 border border-emerald-150'
                     }`}>
-                      {ev.status}
+                      {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-ping"></span>}
+                      {isLive ? 'Live' : ev.status}
                     </span>
                   </div>
 
@@ -818,7 +867,9 @@ export default function EventsTab({
                           {isExplicitlyPinned
                             ? '★ Spotlight Pinned'
                             : isCurrentSpotlight
-                              ? '★ Spotlight (Auto)'
+                              ? isCurrentSpotlightLive
+                                ? '★ Live Spotlight'
+                                : '★ Spotlight (Auto)'
                               : 'Set Spotlight'}
                         </span>
                       </button>

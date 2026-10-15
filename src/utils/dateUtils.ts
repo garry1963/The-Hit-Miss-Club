@@ -46,3 +46,64 @@ export function getBaseEventId(eventId: string): string {
   if (eventId.endsWith('-alternate')) return eventId.slice(0, -10);
   return eventId;
 }
+
+export function getTodayLocalYMD(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function normalizeDateToYMD(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  let d = dateStr.trim();
+  if (d.includes('T')) {
+    d = d.split('T')[0];
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    return d;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(d)) {
+    const [day, month, year] = d.split('/');
+    return `${year}-${month}-${day}`;
+  }
+  try {
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    // fallback
+  }
+  return d;
+}
+
+export function isEventEnded(e: { date: string; endDate?: string; status?: string }): boolean {
+  if (e.status === 'Completed') return true;
+  const targetDateStr = e.endDate || e.date;
+  if (!targetDateStr) return false;
+  const dateToCompare = normalizeDateToYMD(targetDateStr);
+  const todayStr = getTodayLocalYMD();
+  return Boolean(dateToCompare && dateToCompare < todayStr);
+}
+
+export function isEventLive(e: { date: string; endDate?: string; status?: string }): boolean {
+  if (e.status === 'Live') return true;
+  if (e.status === 'Completed') return false;
+
+  const todayStr = getTodayLocalYMD();
+  const startYMD = normalizeDateToYMD(e.date);
+  const endYMD = normalizeDateToYMD(e.endDate || e.date);
+
+  if (startYMD && endYMD) {
+    return todayStr >= startYMD && todayStr <= endYMD;
+  } else if (startYMD) {
+    return todayStr === startYMD;
+  }
+  return false;
+}
+

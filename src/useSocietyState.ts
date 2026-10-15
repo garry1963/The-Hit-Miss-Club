@@ -253,8 +253,15 @@ export function useSocietyState() {
     const unsubSettings = onSnapshot(doc(db, 'settings', 'config'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data.adminPassword) setAdminPassword(data.adminPassword);
-        if (data.activeSeasonId) setActiveSeasonId(data.activeSeasonId);
+        if (data.adminPassword && typeof data.adminPassword === 'string' && data.adminPassword.trim()) {
+          const pass = data.adminPassword.trim();
+          setAdminPassword(pass);
+          localStorage.setItem(STORAGE_KEY_PREFIX + 'adminPassword', pass);
+        }
+        if (data.activeSeasonId) {
+          setActiveSeasonId(data.activeSeasonId);
+          localStorage.setItem(STORAGE_KEY_PREFIX + 'activeSeasonId', data.activeSeasonId);
+        }
       } else {
         // Document doesn't exist on server yet. Do not write a default doc here as that causes offline/cold-cache
         // clients to overwrite custom server passwords back to default 'admin'. Just use local state defaults.
@@ -318,9 +325,12 @@ export function useSocietyState() {
   };
 
   const updateAdminPasswordOnDB = async (password: string) => {
-    setAdminPassword(password);
+    const trimmed = password.trim();
+    if (!trimmed) return;
+    setAdminPassword(trimmed);
+    localStorage.setItem(STORAGE_KEY_PREFIX + 'adminPassword', trimmed);
     try {
-      await setDoc(doc(db, 'settings', 'config'), { adminPassword: password, activeSeasonId }, { merge: true });
+      await setDoc(doc(db, 'settings', 'config'), { adminPassword: trimmed }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'settings/config');
     }
@@ -635,7 +645,7 @@ export function useSocietyState() {
       for (const s of updatedSeasons) {
         await setDoc(doc(db, 'seasons', s.id), s);
       }
-      await setDoc(doc(db, 'settings', 'config'), { adminPassword, activeSeasonId: id }, { merge: true });
+      await setDoc(doc(db, 'settings', 'config'), { activeSeasonId: id }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `toggleSeasonActive/${id}`);
     }

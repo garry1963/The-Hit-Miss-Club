@@ -6,7 +6,7 @@
 import React from 'react';
 import { Calendar, Trophy, ChevronRight, Users, Eye, HelpCircle, ArrowRight, Timer, Archive, BookOpen, Sparkles, Search, Check, X, Star } from 'lucide-react';
 import { Event, NewsArticle, Member, StandingsRow, Division, StandingEntry } from '../types';
-import { formatAppDate } from '../utils/dateUtils';
+import { formatAppDate, isEventLive, isEventEnded } from '../utils/dateUtils';
 
 // Countdown Timer Component
 interface CountdownTimerProps {
@@ -205,17 +205,35 @@ export default function HomeTab({
     return dateToCompare < todayStr;
   };
 
+  // Live tournament detection (prioritizes active season, then any season)
+  const liveEvent = React.useMemo(() => {
+    const activeSeasonLive = events.filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && isEventLive(e));
+    if (activeSeasonLive.length > 0) {
+      return activeSeasonLive.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+    }
+    const anyLive = events.filter(e => isEventLive(e));
+    return anyLive[0] || null;
+  }, [events, activeSeasonId]);
+
   // Find closest upcoming event that has not ended yet for the active season
-  const upcomingEvents = events
-    .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status === 'Upcoming' && !hasEventEnded(e))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const upcomingEvents = React.useMemo(() => {
+    return events
+      .filter(e => (!activeSeasonId || e.seasonId === activeSeasonId) && e.status !== 'Completed' && !isEventEnded(e))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [events, activeSeasonId]);
 
   // Spotlight fixture resolution:
-  // 1. Manually selected fixture from siteContent.spotlight_event_id (if not 'auto')
-  // 2. Fixture flagged with isSpotlight === true
-  // 3. Fallback: closest upcoming event for the active season
-  // 4. Any upcoming event or any event
+  // 1. TOP PRIORITY: If a tournament is live, prioritise that tournament as the spotlight fixture!
+  // 2. Manually selected fixture from siteContent.spotlight_event_id (if not 'auto')
+  // 3. Fixture flagged with isSpotlight === true
+  // 4. Fallback: closest upcoming event for the active season
+  // 5. Any upcoming event or any event
   const spotlightEvent = React.useMemo(() => {
+    // Top Priority: If a tournament is live, prioritize that tournament as the spotlight fixture
+    if (liveEvent) {
+      return liveEvent;
+    }
+
     const configuredId = siteContent?.spotlight_event_id;
     if (configuredId && configuredId !== 'auto') {
       const match = events.find(e => e.id === configuredId);
@@ -224,10 +242,13 @@ export default function HomeTab({
     const markedEvent = events.find(e => (e as any).isSpotlight);
     if (markedEvent) return markedEvent;
 
-    return upcomingEvents[0] || events.find(e => e.status === 'Upcoming') || events[0] || null;
-  }, [events, siteContent?.spotlight_event_id, upcomingEvents]);
+    return upcomingEvents[0] || events.find(e => e.status !== 'Completed' && !isEventEnded(e)) || events[0] || null;
+  }, [liveEvent, events, siteContent?.spotlight_event_id, upcomingEvents]);
+
+  const isLiveSpotlight = Boolean(spotlightEvent && isEventLive(spotlightEvent));
 
   const isManuallySpotlighted = Boolean(
+    !isLiveSpotlight &&
     siteContent?.spotlight_event_id &&
     siteContent.spotlight_event_id !== 'auto' &&
     events.some(e => e.id === siteContent.spotlight_event_id)
@@ -630,7 +651,12 @@ export default function HomeTab({
                 {siteContent?.home_fixture_card_title || "★ Spotlight Fixture"}
               </div>
 
-              {isManuallySpotlighted ? (
+              {isLiveSpotlight ? (
+                <span className="bg-red-500/20 text-red-300 border border-red-500/50 px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider flex items-center gap-1.5 font-bold shadow-xs animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block animate-ping"></span>
+                  🔴 LIVE NOW
+                </span>
+              ) : isManuallySpotlighted ? (
                 <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider flex items-center gap-1 font-semibold">
                   📌 Pinned Fixture
                 </span>
@@ -647,11 +673,18 @@ export default function HomeTab({
                   <h3 className="font-display font-bold text-2xl text-stone-100 tracking-tight">
                     {spotlightEvent.title}
                   </h3>
-                  {spotlightEvent.classification && (
-                    <span className="shrink-0 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                      {spotlightEvent.classification}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isLiveSpotlight && (
+                      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse">
+                        LIVE
+                      </span>
+                    )}
+                    {spotlightEvent.classification && (
+                      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                        {spotlightEvent.classification}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="space-y-2 text-sm text-stone-300 font-sans">
@@ -675,7 +708,31 @@ export default function HomeTab({
                   {spotlightEvent.notes || 'No general notes for this event.'}
                 </p>
 
-                <CountdownTimer eventDate={spotlightEvent.date} eventTime={spotlightEvent.time} />
+                {isLiveSpotlight ? (
+                  <div className="bg-red-950/40 border border-red-500/30 p-3.5 rounded-xl space-y-2 mt-4 text-xs">
+                    <div className="flex items-center justify-between text-red-200 font-bold uppercase text-[11px] tracking-wider">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-400 inline-block animate-ping"></span>
+                        ⛳ Tournament Live In Progress
+                      </span>
+                      <span className="text-[10px] font-mono text-red-300">Scoring Underway</span>
+                    </div>
+                    <p className="text-stone-300 text-xs">
+                      This tournament is currently taking place! Players are on the course and scores are active.
+                    </p>
+                    <div className="pt-1">
+                      <button
+                        onClick={() => setCurrentTab('results')}
+                        className="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                      >
+                        <Trophy className="w-3.5 h-3.5" />
+                        <span>View Live Scoresheet</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <CountdownTimer eventDate={spotlightEvent.date} eventTime={spotlightEvent.time} />
+                )}
               </div>
             ) : (
               <div className="space-y-2 py-4">
@@ -1038,18 +1095,19 @@ export default function HomeTab({
                   onChange={e => setDraftSpotlightEventId(e.target.value)}
                   className="w-full bg-white border border-stone-250 py-2.5 px-3.5 rounded-xl text-stone-900 font-sans text-sm focus:outline-none focus:border-amber-400"
                 >
-                  <option value="auto">⚡ Auto (Closest Upcoming Fixture)</option>
+                  <option value="auto">⚡ Auto (Prioritizes Live Tournament, then Closest Upcoming)</option>
                   {events.map(ev => {
                     const c = courses.find(course => course.id === ev.courseId);
+                    const isLive = isEventLive(ev);
                     return (
                       <option key={ev.id} value={ev.id}>
-                        {ev.date} — {ev.title} ({c?.name || 'Unknown Course'}) [{ev.classification || 'Standard'} &middot; {ev.status}]
+                        {isLive ? '🔴 [LIVE NOW] ' : ''}{formatAppDate(ev.date)} — {ev.title} ({c?.name || 'Unknown Course'}) [{ev.classification || 'Standard'} &middot; {isLive ? 'Live' : ev.status}]
                       </option>
                     );
                   })}
                 </select>
                 <p className="text-[11px] text-stone-500 italic">
-                  Select a specific tournament fixture to pin to the spotlight card, or choose Auto to dynamically feature the nearest upcoming fixture.
+                  Select a specific tournament fixture to pin to the spotlight card, or choose Auto to dynamically prioritize active live tournaments or nearest upcoming fixtures.
                 </p>
               </div>
 
@@ -1139,7 +1197,7 @@ export default function HomeTab({
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs uppercase text-stone-900 flex items-center gap-1.5">
-                      <span>⚡ Auto-Detect (Closest Upcoming Fixture)</span>
+                      <span>⚡ Auto (Prioritizes Live Tournament, then Closest Upcoming)</span>
                     </span>
                     {!isManuallySpotlighted && (
                       <span className="bg-amber-400 text-stone-900 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded">
@@ -1148,7 +1206,7 @@ export default function HomeTab({
                     )}
                   </div>
                   <p className="text-[11px] text-stone-500">
-                    Dynamically chooses the nearest chronological fixture that has not concluded yet.
+                    Prioritizes any tournament currently in progress today. If no tournament is live, dynamically highlights the nearest upcoming fixture.
                   </p>
                 </div>
                 <button
@@ -1190,6 +1248,7 @@ export default function HomeTab({
                   const c = courses.find(course => course.id === ev.courseId);
                   const isCurrentActive = spotlightEvent?.id === ev.id;
                   const isExplicitlyPinned = siteContent?.spotlight_event_id === ev.id;
+                  const isLive = isEventLive(ev);
 
                   return (
                     <div
@@ -1202,9 +1261,11 @@ export default function HomeTab({
                       className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isExplicitlyPinned
                           ? 'bg-amber-50 border-amber-400 shadow-sm ring-1 ring-amber-400/40'
-                          : isCurrentActive
-                            ? 'bg-stone-50 border-amber-300'
-                            : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50/60'
+                          : isLive
+                            ? 'bg-red-50/60 border-red-300 ring-1 ring-red-400/30'
+                            : isCurrentActive
+                              ? 'bg-stone-50 border-amber-300'
+                              : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50/60'
                       }`}
                     >
                       <div className="space-y-1 min-w-0">
@@ -1212,6 +1273,12 @@ export default function HomeTab({
                           <span className="font-bold text-xs uppercase text-stone-900 truncate">
                             {ev.title}
                           </span>
+                          {isLive && (
+                            <span className="bg-red-500/15 text-red-700 border border-red-300 text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-ping"></span>
+                              🔴 Live Now
+                            </span>
+                          )}
                           {ev.classification === 'Major' ? (
                             <span className="bg-amber-100 text-amber-800 text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border border-amber-200">
                               🏆 Major
@@ -1226,9 +1293,9 @@ export default function HomeTab({
                             </span>
                           )}
                           <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${
-                            ev.status === 'Completed' ? 'bg-stone-100 text-stone-500' : 'bg-emerald-100 text-emerald-800'
+                            ev.status === 'Completed' ? 'bg-stone-100 text-stone-500' : isLive ? 'bg-red-100 text-red-800 font-bold' : 'bg-emerald-100 text-emerald-800'
                           }`}>
-                            {ev.status}
+                            {isLive ? 'Live' : ev.status}
                           </span>
                         </div>
 
@@ -1250,8 +1317,8 @@ export default function HomeTab({
                             Pinned
                           </span>
                         ) : isCurrentActive ? (
-                          <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-bold uppercase px-2 py-1 rounded-lg">
-                            Auto Pick
+                          <span className={`${isLive ? 'bg-red-500 text-white font-black' : 'bg-amber-100 text-amber-800 border border-amber-300 font-bold'} text-[10px] uppercase px-2 py-1 rounded-lg shadow-xs`}>
+                            {isLive ? '🔴 Live Spotlight' : 'Auto Pick'}
                           </span>
                         ) : (
                           <button
