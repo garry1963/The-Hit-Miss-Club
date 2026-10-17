@@ -521,7 +521,7 @@ export function useSocietyState() {
       id: 'res-' + Date.now()
     };
     try {
-      await setDoc(doc(db, 'results', newRes.id), newRes);
+      await setDoc(doc(db, 'results', newRes.id), cleanUndefined(newRes));
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `results/${newRes.id}`);
     }
@@ -549,7 +549,7 @@ export function useSocietyState() {
         await deleteDoc(doc(db, 'results', r.id));
       }
       for (const r of formatted) {
-        await setDoc(doc(db, 'results', r.id), r);
+        await setDoc(doc(db, 'results', r.id), cleanUndefined(r));
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `resultsByEvent/${eventId}`);
