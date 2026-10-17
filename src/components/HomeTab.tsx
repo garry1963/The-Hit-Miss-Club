@@ -267,14 +267,57 @@ export default function HomeTab({
     ? courses.find(c => c.id === spotlightEvent.courseId)
     : null;
 
+  const formatScoreVsPar = (score: number) => {
+    if (score > 0) return `+${score}`;
+    if (score < 0) return `${score}`;
+    return 'E';
+  };
+
   // Top 3 live leaderboard entries for spotlight event
   const spotlightLiveResults = React.useMemo(() => {
     if (!isLiveSpotlight || !spotlightEvent) return [];
+    const formats = spotlightEvent.scoreDisplayFormats || ['net'];
     return results
       .filter(r => getBaseEventId(r.eventId) === spotlightEvent.id)
-      .sort((a, b) => a.position - b.position || a.netScore - b.netScore)
+      .sort((a, b) => {
+        if (a.position !== b.position && a.position > 0 && b.position > 0) {
+          return a.position - b.position;
+        }
+        if (formats.includes('points') && (spotlightEvent.format === 'Stableford' || !formats.includes('net'))) {
+          return (b.points || 0) - (a.points || 0) || (a.netScore || 0) - (b.netScore || 0);
+        } else if (formats.includes('gross') && !formats.includes('net')) {
+          return (a.grossScore || 0) - (b.grossScore || 0) || (a.netScore || 0) - (b.netScore || 0);
+        } else if (formats.includes('net') && !formats.includes('gross')) {
+          return (a.netScore || 0) - (b.netScore || 0) || (a.grossScore || 0) - (b.grossScore || 0);
+        } else {
+          return (a.netScore || 0) - (b.netScore || 0) || (a.grossScore || 0) - (b.grossScore || 0);
+        }
+      })
       .slice(0, 3);
   }, [isLiveSpotlight, spotlightEvent, results]);
+
+  const spotlightFormats = spotlightEvent?.scoreDisplayFormats || ['net'];
+  const hasGross = spotlightFormats.includes('gross');
+  const hasNet = spotlightFormats.includes('net');
+  const hasPoints = spotlightFormats.includes('points');
+
+  let scoreLabel = 'Net Score';
+  let scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.netScore);
+  let scoreColor = 'text-emerald-400';
+
+  if (hasGross && !hasNet && !hasPoints) {
+    scoreLabel = 'Gross Score';
+    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.grossScore);
+    scoreColor = 'text-indigo-300';
+  } else if (hasPoints && !hasNet && !hasGross) {
+    scoreLabel = 'Stableford Points';
+    scoreValueFn = (r: TournamentResult) => `${r.points} PTS`;
+    scoreColor = 'text-amber-300';
+  } else if (hasGross && hasNet) {
+    scoreLabel = 'Gross Score';
+    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.grossScore);
+    scoreColor = 'text-indigo-300';
+  }
 
   // Resolve all unique divisions active or configured
   const allDivisions = React.useMemo(() => {
@@ -740,7 +783,7 @@ export default function HomeTab({
                       <div className="space-y-1.5 py-1">
                         <div className="text-[10px] font-mono text-stone-400 uppercase tracking-wider flex items-center justify-between">
                           <span>Live Standings</span>
-                          <span>Net Score</span>
+                          <span>{scoreLabel}</span>
                         </div>
                         <div className="space-y-1">
                           {spotlightLiveResults.map((r, idx) => {
@@ -760,8 +803,8 @@ export default function HomeTab({
                                     </span>
                                   )}
                                 </div>
-                                <span className="font-mono font-bold text-emerald-400">
-                                  {r.netScore > 0 ? `+${r.netScore}` : r.netScore === 0 ? 'E' : r.netScore}
+                                <span className={`font-mono font-bold ${scoreColor}`}>
+                                  {scoreValueFn(r)}
                                 </span>
                               </div>
                             );
