@@ -4,9 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy, X, Sparkles, Globe } from 'lucide-react';
-import { Event, GolfCourse, Season } from '../types';
-import { formatAppDate, isEventLive, isEventEnded } from '../utils/dateUtils';
+import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy, X, Sparkles, Globe, Flag } from 'lucide-react';
+import { Event, GolfCourse, Season, Member, TournamentResult } from '../types';
+import { formatAppDate, isEventLive, isEventEnded, getBaseEventId } from '../utils/dateUtils';
+import LiveLeaderboardModal from './LiveLeaderboardModal';
 
 interface EventsTabProps {
   events: Event[];
@@ -21,6 +22,9 @@ interface EventsTabProps {
   setCurrentTab: (tab: string) => void;
   siteContent?: Record<string, string>;
   updateSiteContent?: (key: string, val: string) => void;
+  results?: TournamentResult[];
+  members?: Member[];
+  setEventResults?: (eventId: string, newResults: Omit<TournamentResult, 'id' | 'eventId'>[]) => Promise<void>;
 }
 
 export default function EventsTab({
@@ -35,13 +39,17 @@ export default function EventsTab({
   deleteEvent,
   setCurrentTab,
   siteContent,
-  updateSiteContent
+  updateSiteContent,
+  results = [],
+  members = [],
+  setEventResults
 }: EventsTabProps) {
   // Local states
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [viewingCourse, setViewingCourse] = useState<GolfCourse | null>(null);
   const [filterFormat, setFilterFormat] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Live' | 'Upcoming' | 'Completed'>('All');
+  const [liveLeaderboardEvent, setLiveLeaderboardEvent] = useState<Event | null>(null);
   
   // Form states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -156,6 +164,51 @@ export default function EventsTab({
     setEventSeasonId(e.seasonId || activeSeasonId);
     setIsSpotlightForm(siteContent?.spotlight_event_id === e.id || Boolean((e as any).isSpotlight));
     setShowAddForm(true);
+  };
+
+  // Check if editing tournament or draft tournament has live results
+  const editingResults = editingEvent
+    ? results.filter(r => getBaseEventId(r.eventId) === editingEvent.id)
+    : [];
+  const hasExistingLiveScores = editingResults.length > 0;
+
+  const handleOpenLiveLeaderboardFromForm = async () => {
+    if (editingEvent) {
+      setLiveLeaderboardEvent(editingEvent);
+    } else {
+      if (!title.trim()) {
+        setFormError('Please enter a Tournament Name above before creating the live leaderboard.');
+        return;
+      }
+      setFormError('');
+      try {
+        const payload = {
+          seasonId: eventSeasonId || activeSeasonId,
+          title: title.trim(),
+          date: startDate || new Date().toISOString().split('T')[0],
+          endDate: endDate || startDate || new Date().toISOString().split('T')[0],
+          time: time || '12:00 AM GMT',
+          courseId: courseId || courses[0]?.id || '',
+          roundsCount: Number(roundsCount) || 1,
+          format,
+          classification,
+          maxPlayers: Number(maxPlayers) || 16,
+          notes,
+          status: 'Live' as const,
+          isSpotlight: isSpotlightForm
+        };
+        const created = await addEvent(payload);
+        if (created) {
+          setEditingEvent(created);
+          setLiveLeaderboardEvent(created);
+          if (isSpotlightForm && updateSiteContent) {
+            updateSiteContent('spotlight_event_id', created.id);
+          }
+        }
+      } catch (err: any) {
+        setFormError('Failed to initialize tournament: ' + (err.message || 'Unknown error'));
+      }
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -574,6 +627,49 @@ export default function EventsTab({
               </select>
             </div>
 
+            {/* When Live/In Progress is selected in tournament status, add option to create and edit live leaderboard for that tournament */}
+            {status === 'Live' && (
+              <div className="md:col-span-12 bg-gradient-to-r from-red-950/85 via-stone-900 to-red-950/85 border-2 border-red-500/60 rounded-2xl p-4 sm:p-5 text-white shadow-lg space-y-3 animate-fadeIn">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-ping"></span>
+                      <span className="text-[11px] font-mono uppercase tracking-widest text-red-400 font-bold">
+                        Live / In Progress Tournament Status Selected
+                      </span>
+                    </div>
+                    <h4 className="font-display font-bold text-base sm:text-lg text-white">
+                      Live Tournament Leaderboard & Real-Time Scoring
+                    </h4>
+                    <p className="text-xs text-stone-300">
+                      Manage real-time player scores, thru-holes, round tallies, and live standings for this tournament.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenLiveLeaderboardFromForm}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 shadow-md transition cursor-pointer shrink-0"
+                  >
+                    <Trophy className="w-4 h-4 text-amber-300" />
+                    <span>{hasExistingLiveScores ? 'Edit Live Leaderboard' : 'Create Live Leaderboard'}</span>
+                  </button>
+                </div>
+
+                {hasExistingLiveScores ? (
+                  <div className="flex items-center gap-3 text-xs text-stone-300 pt-2 border-t border-red-500/30 font-mono">
+                    <span className="text-red-300">📊 {editingResults.length} Players recorded on live leaderboard</span>
+                    <span className="text-stone-400">•</span>
+                    <span className="text-emerald-400">Scores live & synchronized in real time</span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-stone-400 pt-1 border-t border-red-500/20 italic">
+                    💡 Click <strong>"Create Live Leaderboard"</strong> to initialize player scorecards or import the society roster for this tournament.
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="md:col-span-9 flex flex-col gap-1">
               <label className="font-semibold text-stone-700">Tournament Scope / Notes description</label>
               <input
@@ -659,14 +755,26 @@ export default function EventsTab({
               </span>
             )}
           </div>
-          {isAdmin && updateSiteContent && isManuallyPinned && (
-            <button
-              onClick={() => updateSiteContent('spotlight_event_id', 'auto')}
-              className="text-[11px] text-stone-400 hover:text-white underline cursor-pointer"
-            >
-              Reset to Auto
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isCurrentSpotlightLive && (
+              <button
+                type="button"
+                onClick={() => setLiveLeaderboardEvent(currentSpotlightEvent)}
+                className="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-300" />
+                <span>{isAdmin ? 'Manage Live Leaderboard' : 'View Live Leaderboard'}</span>
+              </button>
+            )}
+            {isAdmin && updateSiteContent && isManuallyPinned && (
+              <button
+                onClick={() => updateSiteContent('spotlight_event_id', 'auto')}
+                className="text-[11px] text-stone-400 hover:text-white underline cursor-pointer"
+              >
+                Reset to Auto
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -826,7 +934,21 @@ export default function EventsTab({
                   </div>
 
                   <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    {ev.status === 'Completed' ? (
+                    {isLive ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLiveLeaderboardEvent(ev);
+                        }}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded font-bold text-[10px] uppercase flex items-center gap-1 shadow-xs transition cursor-pointer"
+                        title={isAdmin ? "Open Live Leaderboard Editor" : "View Live Leaderboard"}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                        <Trophy className="w-3 h-3 text-red-600" />
+                        <span>{isAdmin ? 'Live Leaderboard' : 'Live Board'}</span>
+                      </button>
+                    ) : ev.status === 'Completed' ? (
                       <button 
                         onClick={() => setCurrentTab('results')}
                         className="text-emerald-850 hover:underline hover:text-emerald-950 font-bold text-[10px] uppercase flex items-center gap-1"
@@ -995,7 +1117,18 @@ export default function EventsTab({
                   </div>
                 </div>
 
-                {selectedEvent.status === 'Completed' ? (
+                {selectedEvent.status === 'Live' || isEventLive(selectedEvent) ? (
+                  <button
+                    onClick={() => {
+                      setLiveLeaderboardEvent(selectedEvent);
+                    }}
+                    className="w-full text-center bg-red-600 hover:bg-red-500 border border-red-500 text-white hover:scale-102 transition-all py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-white inline-block animate-ping"></span>
+                    <Trophy className="w-3.5 h-3.5 text-amber-300" />
+                    <span>{isAdmin ? 'Manage Live Leaderboard' : 'View Live Leaderboard'}</span>
+                  </button>
+                ) : selectedEvent.status === 'Completed' ? (
                   <button
                     onClick={() => {
                       setSelectedEventId(null);
@@ -1113,11 +1246,27 @@ export default function EventsTab({
                 )}
 
               </div>
-
             </div>
-
           </div>
         </div>
+      )}
+
+      {/* 6. Live Tournament Leaderboard Modal */}
+      {liveLeaderboardEvent && (
+        <LiveLeaderboardModal
+          isOpen={Boolean(liveLeaderboardEvent)}
+          onClose={() => setLiveLeaderboardEvent(null)}
+          event={liveLeaderboardEvent}
+          course={courses.find(c => c.id === liveLeaderboardEvent.courseId)}
+          members={members}
+          results={results}
+          isAdmin={isAdmin}
+          onSaveResults={async (targetId, newRes) => {
+            if (setEventResults) {
+              await setEventResults(targetId, newRes);
+            }
+          }}
+        />
       )}
 
     </div>

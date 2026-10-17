@@ -76,6 +76,8 @@ export interface TournamentResult {
   round2Score?: number;
   round3Score?: number;
   round4Score?: number;
+  thru?: string;
+  todayScore?: number;
 }
 
 export interface StandingsRow {

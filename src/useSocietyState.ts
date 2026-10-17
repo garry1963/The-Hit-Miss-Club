@@ -537,16 +537,17 @@ export function useSocietyState() {
   };
 
   const setEventResults = async (eventId: string, newResults: Omit<TournamentResult, 'id' | 'eventId'>[]) => {
+    const formatted: TournamentResult[] = newResults.map((r, idx) => ({
+      ...r,
+      id: `res-added-${eventId}-${idx}-${Date.now()}`,
+      eventId
+    }));
+    setResults(prev => [...prev.filter(r => r.eventId !== eventId), ...formatted]);
     try {
       const associated = results.filter(r => r.eventId === eventId);
       for (const r of associated) {
         await deleteDoc(doc(db, 'results', r.id));
       }
-      const formatted = newResults.map((r, idx) => ({
-        ...r,
-        id: `res-added-${eventId}-${idx}-${Date.now()}`,
-        eventId
-      }));
       for (const r of formatted) {
         await setDoc(doc(db, 'results', r.id), r);
       }

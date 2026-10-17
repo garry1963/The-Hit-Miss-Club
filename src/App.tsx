@@ -41,6 +41,8 @@ export default function App() {
             addEvent={state.addEvent}
             activeSeasonId={state.activeSeasonId}
             manualEntries={state.manualEntries}
+            results={state.results}
+            setEventResults={state.setEventResults}
           />
         );
       case 'about':
@@ -68,6 +70,9 @@ export default function App() {
             setCurrentTab={setCurrentTab}
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
+            results={state.results}
+            members={state.members}
+            setEventResults={state.setEventResults}
           />
         );
       case 'results':

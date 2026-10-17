@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Award, Plus, Trash2, Search, Filter, ShieldAlert, Download, Save, RefreshCw } from 'lucide-react';
 import { Event, TournamentResult, Member, GolfCourse } from '../types';
-import { formatAppDate, getBaseEventId } from '../utils/dateUtils';
+import { formatAppDate, getBaseEventId, isEventLive } from '../utils/dateUtils';
 
 interface ResultsTabProps {
   events: Event[];
@@ -29,8 +29,10 @@ export default function ResultsTab({
   setEventResults,
   deleteResult
 }: ResultsTabProps) {
-  // Filter only completed events for the current season
-  const completedEvents = events.filter(e => e.seasonId === activeSeasonId && e.status === 'Completed');
+  // Filter completed and live in-progress events for the current season
+  const completedEvents = events.filter(e => 
+    e.seasonId === activeSeasonId && (e.status === 'Completed' || e.status === 'Live' || isEventLive(e))
+  );
 
   // Active selected event for looking at results
   const [selectedEventId, setSelectedEventId] = useState<string>(() => {
@@ -323,19 +325,21 @@ export default function ResultsTab({
               >
                 {completedEvents.flatMap((evt) => {
                   const isQ = evt.classification === 'Qualifier' || evt.title.includes('(Q)') || evt.title.includes('Qualifier');
+                  const isLiveEvt = evt.status === 'Live' || isEventLive(evt);
+                  const prefix = isLiveEvt ? '🔴 LIVE: ' : '🏆 ';
                   if (isQ) {
                     return [
                       <option key={evt.id} value={evt.id}>
-                        🏆 {evt.title} (Q Entry) ({formatAppDate(evt.date)})
+                        {prefix}{evt.title} (Q Entry) ({formatAppDate(evt.date)})
                       </option>
                     ];
                   }
                   return [
                     <option key={evt.id + '-main'} value={evt.id + '-main'}>
-                      🏆 {evt.title} (Main Entry) ({formatAppDate(evt.date)})
+                      {prefix}{evt.title} (Main Entry) ({formatAppDate(evt.date)})
                     </option>,
                     <option key={evt.id + '-alternate'} value={evt.id + '-alternate'}>
-                      ⛳ {evt.title} (Alternate Entry) ({formatAppDate(evt.date)})
+                      {isLiveEvt ? '🔴 LIVE: ' : '⛳ '}{evt.title} (Alternate Entry) ({formatAppDate(evt.date)})
                     </option>
                   ];
                 })}
@@ -383,6 +387,12 @@ export default function ResultsTab({
           {activeEvent && (
             <div className="bg-emerald-950 text-white rounded-2xl p-5 sm:p-6 border border-emerald-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="space-y-1">
+                {(activeEvent.status === 'Live' || isEventLive(activeEvent)) && (
+                  <span className="bg-red-500/25 text-red-300 border border-red-500/50 px-2.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest inline-flex items-center gap-1.5 font-bold mb-1 shadow-xs animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block animate-ping"></span>
+                    🔴 LIVE TOURNAMENT IN PROGRESS
+                  </span>
+                )}
                 <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest block font-bold">
                   {activeEvent.classification === 'Qualifier' || activeEvent.title.includes('(Q)') || activeEvent.title.includes('Qualifier')
                     ? 'Qualifier Competition Entry' 
