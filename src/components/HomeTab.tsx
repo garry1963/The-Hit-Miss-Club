@@ -145,6 +145,7 @@ interface HomeTabProps {
   manualEntries: Record<string, StandingEntry[]>;
   results?: TournamentResult[];
   setEventResults?: (eventId: string, newResults: Omit<TournamentResult, 'id' | 'eventId'>[]) => Promise<void>;
+  updateEvent?: (updated: Event) => Promise<void> | void;
 }
 
 export default function HomeTab({
@@ -162,7 +163,8 @@ export default function HomeTab({
   activeSeasonId,
   manualEntries,
   results = [],
-  setEventResults
+  setEventResults,
+  updateEvent
 }: HomeTabProps) {
   const [liveLeaderboardModalOpen, setLiveLeaderboardModalOpen] = React.useState(false);
 
@@ -1751,6 +1753,11 @@ export default function HomeTab({
           onSaveResults={async (targetId, newRes) => {
             if (setEventResults) {
               await setEventResults(targetId, newRes);
+            }
+          }}
+          onUpdateEvent={async (updated) => {
+            if (updateEvent) {
+              await updateEvent(updated);
             }
           }}
         />

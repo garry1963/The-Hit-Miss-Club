@@ -45,6 +45,8 @@ export interface GolfCourse {
   website?: string;
 }
 
+export type StandingsScoreFormat = 'gross' | 'net' | 'points';
+
 // Event/Tournament model representing renamed Tournaments
 export interface Event {
   id: string;
@@ -53,7 +55,7 @@ export interface Event {
   courseId: string; // Course
   date: string; // Start Date
   endDate: string; // End Date
-  roundsCount: number; // Number of Rounds
+  roundsCount: number; // Number of Rounds (1 to 4 rounds tracked)
   format: 'Stableford' | 'Stroke Play' | 'Modified Stableford'; // Tournament format dropdown selection
   classification?: 'Major' | 'Standard' | 'Alternate' | 'Qualifier';
   status: 'Upcoming' | 'Live' | 'Completed';
@@ -61,6 +63,7 @@ export interface Event {
   maxPlayers?: number;
   time?: string;
   isSpotlight?: boolean;
+  scoreDisplayFormats?: StandingsScoreFormat[]; // Standings score display format: gross, net, points, or any combination of the three
 }
 
 export interface TournamentResult {

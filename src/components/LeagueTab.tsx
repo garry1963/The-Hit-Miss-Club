@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Search, Check, Play, Edit, Trash2, Plus, Download, Upload, ShieldAlert, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Trophy, Award, Search, Check, Play, Edit, Trash2, Plus, Download, Upload, ShieldAlert, Sparkles, SlidersHorizontal, Layers } from 'lucide-react';
 import { Member, Season, Division, Event, TournamentResult, StandingEntry } from '../types';
 
 interface LeagueTabProps {
@@ -46,6 +46,66 @@ export default function LeagueTab({
   const [selectedDiv, setSelectedDiv] = useState<string>('Premier Division');
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Standings score display format options: Gross, Net, Stableford Points or any combination of the three
+  const [showGross, setShowGross] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('golf_standings_score_format');
+      if (stored) return JSON.parse(stored).gross ?? true;
+    } catch {}
+    return true;
+  });
+
+  const [showNet, setShowNet] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('golf_standings_score_format');
+      if (stored) return JSON.parse(stored).net ?? true;
+    } catch {}
+    return true;
+  });
+
+  const [showPoints, setShowPoints] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('golf_standings_score_format');
+      if (stored) return JSON.parse(stored).points ?? true;
+    } catch {}
+    return true;
+  });
+
+  // Standings sort criteria (points, net, gross, or natural rank)
+  const [standingsSortBy, setStandingsSortBy] = useState<'rank' | 'points' | 'net' | 'gross'>('rank');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('golf_standings_score_format', JSON.stringify({
+        gross: showGross,
+        net: showNet,
+        points: showPoints
+      }));
+    } catch {}
+  }, [showGross, showNet, showPoints]);
+
+  const handleToggleFormat = (format: 'gross' | 'net' | 'points') => {
+    if (format === 'gross') {
+      if (showGross && !showNet && !showPoints) {
+        alert('At least one standings score format must remain visible.');
+        return;
+      }
+      setShowGross(!showGross);
+    } else if (format === 'net') {
+      if (showNet && !showGross && !showPoints) {
+        alert('At least one standings score format must remain visible.');
+        return;
+      }
+      setShowNet(!showNet);
+    } else if (format === 'points') {
+      if (showPoints && !showGross && !showNet) {
+        alert('At least one standings score format must remain visible.');
+        return;
+      }
+      setShowPoints(!showPoints);
+    }
+  };
+
   // Rule editing state (requested)
   const [isEditingRule, setIsEditingRule] = useState(false);
   const [ruleInput, setRuleInput] = useState('');
@@ -131,6 +191,18 @@ export default function LeagueTab({
     if (member && member.active === false) return false;
     return row.playerName.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  const sortedStandings = useMemo(() => {
+    const list = [...filteredStandings];
+    if (standingsSortBy === 'gross') {
+      return list.sort((a, b) => a.avgGross - b.avgGross || a.avgNet - b.avgNet);
+    } else if (standingsSortBy === 'net') {
+      return list.sort((a, b) => a.avgNet - b.avgNet || b.totalPoints - a.totalPoints);
+    } else if (standingsSortBy === 'points') {
+      return list.sort((a, b) => b.totalPoints - a.totalPoints || a.avgNet - b.avgNet);
+    }
+    return list.sort((a, b) => a.rank - b.rank);
+  }, [filteredStandings, standingsSortBy]);
 
   // Manual entries update triggers
   const handleOpenAddEntry = () => {
@@ -553,13 +625,26 @@ export default function LeagueTab({
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1">
-              <label className="font-semibold text-stone-600">Rounds</label>
-              <input
-                type="number"
-                value={entryRounds}
-                onChange={e => setEntryRounds(Number(e.target.value))}
-                className="bg-white border rounded px-3 py-2 text-stone-900"
-              />
+              <label className="font-semibold text-stone-600 flex items-center justify-between text-xs">
+                <span>Rounds</span>
+                <span className="font-mono text-emerald-800 font-bold">{entryRounds}R</span>
+              </label>
+              <div className="grid grid-cols-4 gap-1 p-0.5 bg-stone-100 rounded border border-stone-250">
+                {[1, 2, 3, 4].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setEntryRounds(num)}
+                    className={`py-1 text-xs font-bold font-mono rounded transition cursor-pointer text-center ${
+                      entryRounds === num
+                        ? 'bg-emerald-850 text-white shadow-xs'
+                        : 'bg-white text-stone-700 hover:bg-stone-50'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1">
@@ -676,12 +761,148 @@ export default function LeagueTab({
         </section>
       )}
 
-      {/* 7. Divisional Standing Table with requested columns */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <span className="text-stone-400 text-xs font-mono font-medium block">
-            Manual standing state is active. Custom records are manually managed by committee administrators.
-          </span>
+      {/* 7. Divisional Standing Table with score display format options */}
+      <div className="space-y-4">
+        
+        {/* Score Display Format Option Bar */}
+        <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+          <div className="space-y-1">
+            <span className="text-[10px] font-mono text-emerald-800 uppercase tracking-widest font-bold flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
+              <span>Standings Score Display Format</span>
+            </span>
+            <p className="text-xs text-stone-500">
+              Select score display format from individual gross, net or Stableford points or any combination of the three.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Format Toggle Chips */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-stone-250 shadow-xs">
+              <button
+                type="button"
+                onClick={() => handleToggleFormat('gross')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                  showGross
+                    ? 'bg-stone-850 text-white shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100'
+                }`}
+                title="Toggle Individual Gross Score column"
+              >
+                <span>{showGross ? '✓' : '+'}</span>
+                <span>Gross</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleFormat('net')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                  showNet
+                    ? 'bg-emerald-800 text-white shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100'
+                }`}
+                title="Toggle Individual Net Score column"
+              >
+                <span>{showNet ? '✓' : '+'}</span>
+                <span>Net</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleFormat('points')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                  showPoints
+                    ? 'bg-amber-400 text-stone-950 font-extrabold shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100'
+                }`}
+                title="Toggle Stableford Points column"
+              >
+                <span>{showPoints ? '✓' : '+'}</span>
+                <span>Stableford Points</span>
+              </button>
+            </div>
+
+            {/* Quick Combination Presets */}
+            <div className="flex items-center gap-1 text-[11px] font-mono">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGross(true);
+                  setShowNet(true);
+                  setShowPoints(true);
+                }}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase transition cursor-pointer ${
+                  showGross && showNet && showPoints
+                    ? 'bg-stone-850 text-white border-stone-850'
+                    : 'bg-white text-stone-600 border-stone-250 hover:bg-stone-100'
+                }`}
+              >
+                All 3
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGross(false);
+                  setShowNet(false);
+                  setShowPoints(true);
+                }}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase transition cursor-pointer ${
+                  !showGross && !showNet && showPoints
+                    ? 'bg-amber-400 text-stone-950 border-amber-400 font-extrabold'
+                    : 'bg-white text-stone-600 border-stone-250 hover:bg-stone-100'
+                }`}
+              >
+                Points
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGross(false);
+                  setShowNet(true);
+                  setShowPoints(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase transition cursor-pointer ${
+                  !showGross && showNet && !showPoints
+                    ? 'bg-emerald-800 text-white border-emerald-800'
+                    : 'bg-white text-stone-600 border-stone-250 hover:bg-stone-100'
+                }`}
+              >
+                Net
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGross(true);
+                  setShowNet(false);
+                  setShowPoints(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase transition cursor-pointer ${
+                  showGross && !showNet && !showPoints
+                    ? 'bg-stone-800 text-white border-stone-800'
+                    : 'bg-white text-stone-600 border-stone-250 hover:bg-stone-100'
+                }`}
+              >
+                Gross
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Sort controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-stone-500 font-mono">Sort standings:</span>
+            <select
+              value={standingsSortBy}
+              onChange={e => setStandingsSortBy(e.target.value as any)}
+              className="bg-white border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-mono text-stone-800 focus:outline-none focus:border-emerald-800"
+            >
+              <option value="rank">Natural Rank (1, 2, 3...)</option>
+              {showPoints && <option value="points">Total Stableford Points (High to Low)</option>}
+              {showNet && <option value="net">Average Net Score (Lowest/Best)</option>}
+              {showGross && <option value="gross">Average Gross Score (Lowest/Best)</option>}
+            </select>
+          </div>
 
           <div className="relative text-xs w-full sm:w-60">
             <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -703,21 +924,21 @@ export default function LeagueTab({
                 <th className="py-4 px-5">Player</th>
                 <th className="py-4 px-4 text-center">Handicap</th>
                 <th className="py-4 px-4 text-center">Rounds</th>
-                <th className="py-4 px-4 text-center">AVG Gross</th>
-                <th className="py-4 px-4 text-center">AVG Net</th>
-                <th className="py-4 px-5 text-right">Total Points</th>
+                {showGross && <th className="py-4 px-4 text-center">AVG Gross</th>}
+                {showNet && <th className="py-4 px-4 text-center">AVG Net</th>}
+                {showPoints && <th className="py-4 px-5 text-right">Total Points</th>}
                 <th className="py-4 px-5 text-right w-28">WINS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 font-sans text-stone-750">
-              {filteredStandings.length === 0 ? (
+              {sortedStandings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-stone-400 font-mono">
+                  <td colSpan={5 + (showGross ? 1 : 0) + (showNet ? 1 : 0) + (showPoints ? 1 : 0)} className="py-12 text-center text-stone-400 font-mono">
                     ⚠️ No compatible divisional standing rows found.
                   </td>
                 </tr>
               ) : (
-                filteredStandings.map((row) => (
+                sortedStandings.map((row) => (
                   <tr key={row.id} className="hover:bg-amber-50/20 font-medium">
                     {/* Rank cell */}
                     <td className="py-3.5 px-5 text-center font-mono font-bold text-stone-850">
@@ -740,19 +961,25 @@ export default function LeagueTab({
                     </td>
 
                     {/* Class AVG Gross score */}
-                    <td className="py-3.5 px-4 text-center font-mono text-stone-700">
-                      {row.avgGross.toFixed(1)}
-                    </td>
+                    {showGross && (
+                      <td className="py-3.5 px-4 text-center font-mono text-stone-700">
+                        {row.avgGross.toFixed(1)}
+                      </td>
+                    )}
 
                     {/* Class AVG Net score */}
-                    <td className="py-3.5 px-4 text-center font-mono text-emerald-800">
-                      {row.avgNet.toFixed(1)}
-                    </td>
+                    {showNet && (
+                      <td className="py-3.5 px-4 text-center font-mono text-emerald-800">
+                        {row.avgNet.toFixed(1)}
+                      </td>
+                    )}
 
                     {/* Sum of Points */}
-                    <td className="py-3.5 px-5 text-right font-mono font-black text-emerald-900 text-xs sm:text-sm">
-                      {row.totalPoints} PTS
-                    </td>
+                    {showPoints && (
+                      <td className="py-3.5 px-5 text-right font-mono font-black text-emerald-900 text-xs sm:text-sm">
+                        {row.totalPoints} PTS
+                      </td>
+                    )}
 
                     {/* Wins column housing both number of wins and admin actions */}
                     <td className="py-3.5 px-5 text-right">

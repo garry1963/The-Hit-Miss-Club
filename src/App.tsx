@@ -43,6 +43,7 @@ export default function App() {
             manualEntries={state.manualEntries}
             results={state.results}
             setEventResults={state.setEventResults}
+            updateEvent={state.updateEvent}
           />
         );
       case 'about':

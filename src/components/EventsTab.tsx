@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy, X, Sparkles, Globe, Flag } from 'lucide-react';
-import { Event, GolfCourse, Season, Member, TournamentResult } from '../types';
+import { Calendar, Plus, Edit, Trash2, CheckCircle, Info, Clock, MapPin, Users, Download, Upload, Trophy, X, Sparkles, Globe, Flag, Sliders } from 'lucide-react';
+import { Event, GolfCourse, Season, Member, TournamentResult, StandingsScoreFormat } from '../types';
 import { formatAppDate, isEventLive, isEventEnded, getBaseEventId } from '../utils/dateUtils';
 import LiveLeaderboardModal from './LiveLeaderboardModal';
 
@@ -63,6 +63,7 @@ export default function EventsTab({
   const [time, setTime] = useState('12:00 AM GMT');
   const [courseId, setCourseId] = useState('');
   const [roundsCount, setRoundsCount] = useState(1);
+  const [scoreDisplayFormats, setScoreDisplayFormats] = useState<StandingsScoreFormat[]>(['gross', 'net', 'points']);
   const [format, setFormat] = useState<'Stableford' | 'Stroke Play' | 'Modified Stableford'>('Stableford');
   const [classification, setClassification] = useState<'Major' | 'Standard' | 'Alternate' | 'Qualifier'>('Standard');
   const [maxPlayers, setMaxPlayers] = useState(16);
@@ -135,6 +136,7 @@ export default function EventsTab({
     setTime('12:00 AM GMT');
     setCourseId(courses[0]?.id || '');
     setRoundsCount(1);
+    setScoreDisplayFormats(['gross', 'net', 'points']);
     setFormat('Stableford');
     setClassification('Standard');
     setMaxPlayers(16);
@@ -156,6 +158,7 @@ export default function EventsTab({
     setTime(e.time);
     setCourseId(e.courseId);
     setRoundsCount(e.roundsCount || 1);
+    setScoreDisplayFormats(e.scoreDisplayFormats && e.scoreDisplayFormats.length > 0 ? e.scoreDisplayFormats : ['gross', 'net', 'points']);
     setFormat(e.format || 'Stableford');
     setClassification(e.classification || 'Standard');
     setMaxPlayers(e.maxPlayers || 16);
@@ -190,6 +193,7 @@ export default function EventsTab({
           time: time || '12:00 AM GMT',
           courseId: courseId || courses[0]?.id || '',
           roundsCount: Number(roundsCount) || 1,
+          scoreDisplayFormats: scoreDisplayFormats.length > 0 ? scoreDisplayFormats : ['gross', 'net', 'points'],
           format,
           classification,
           maxPlayers: Number(maxPlayers) || 16,
@@ -226,6 +230,7 @@ export default function EventsTab({
       time,
       courseId,
       roundsCount: Number(roundsCount) || 1,
+      scoreDisplayFormats: scoreDisplayFormats.length > 0 ? scoreDisplayFormats : ['gross', 'net', 'points'],
       format,
       classification,
       maxPlayers: Number(maxPlayers),
@@ -592,20 +597,8 @@ export default function EventsTab({
               />
             </div>
 
-            <div className="md:col-span-2 flex flex-col gap-1">
-              <label className="font-semibold text-stone-700">Rounds Count</label>
-              <input
-                type="number"
-                min="1"
-                max="8"
-                value={roundsCount}
-                onChange={e => setRoundsCount(Number(e.target.value))}
-                className="bg-white border rounded px-3 py-2 text-stone-900 focus:outline-none"
-              />
-            </div>
-
-            <div className="md:col-span-2 flex flex-col gap-1">
-              <label className="font-semibold text-stone-700">Max Players Limit</label>
+            <div className="md:col-span-3 flex flex-col gap-1">
+              <label className="font-semibold text-stone-700">Max Players</label>
               <input
                 type="number"
                 value={maxPlayers}
@@ -614,7 +607,7 @@ export default function EventsTab({
               />
             </div>
 
-            <div className="md:col-span-3 flex flex-col gap-1">
+            <div className="md:col-span-9 flex flex-col gap-1">
               <label className="font-semibold text-stone-700">Tournament Status</label>
               <select
                 value={status}
@@ -625,6 +618,166 @@ export default function EventsTab({
                 <option value="Live">🔴 Live / In Progress ⛳</option>
                 <option value="Completed">Completed / Closed</option>
               </select>
+            </div>
+
+            {/* 1. Option to select number of individual round scores to be tracked from 1 to 4 rounds */}
+            <div className="md:col-span-6 flex flex-col gap-1.5 p-3.5 bg-stone-50 border border-stone-200 rounded-xl">
+              <label className="font-semibold text-stone-800 flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+                  <span>Individual Rounds Tracked *</span>
+                </span>
+                <span className="text-[11px] text-emerald-800 font-mono font-bold bg-emerald-100/70 px-2 py-0.5 rounded">
+                  {roundsCount} {roundsCount === 1 ? 'Round (R1)' : `Rounds (R1–R${roundsCount})`}
+                </span>
+              </label>
+              <div className="grid grid-cols-4 gap-1.5 p-1 bg-white rounded-lg border border-stone-200 shadow-2xs">
+                {[1, 2, 3, 4].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setRoundsCount(num)}
+                    className={`py-2 px-1 rounded-md text-xs font-bold font-mono transition-all text-center cursor-pointer ${
+                      roundsCount === num
+                        ? 'bg-emerald-800 text-white shadow-xs'
+                        : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border border-stone-200'
+                    }`}
+                  >
+                    <div>{num} {num === 1 ? 'Round' : 'Rounds'}</div>
+                    <div className="text-[9px] font-normal opacity-75">
+                      {num === 1 ? 'R1 only' : num === 2 ? 'R1 & R2' : num === 3 ? 'R1 to R3' : 'R1 to R4'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-stone-500">
+                Configure 1 to 4 individual round scores to track on live scorecards.
+              </p>
+            </div>
+
+            {/* 2. Option to select standings score display format from individual gross, net or Stableford points or any combination of the three */}
+            <div className="md:col-span-6 flex flex-col gap-1.5 p-3.5 bg-stone-50 border border-stone-200 rounded-xl">
+              <label className="font-semibold text-stone-800 flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                  <span>Standings Score Display Format *</span>
+                </span>
+                <span className="text-[10px] text-stone-500 font-mono">
+                  (Any combination of the three)
+                </span>
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-white rounded-lg border border-stone-200 shadow-2xs">
+                {/* Individual Gross */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScoreDisplayFormats(prev => {
+                      if (prev.includes('gross')) {
+                        if (prev.length <= 1) return prev;
+                        return prev.filter(f => f !== 'gross');
+                      }
+                      return [...prev, 'gross'];
+                    });
+                  }}
+                  className={`py-2 px-1 rounded-md text-xs font-bold font-mono transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    scoreDisplayFormats.includes('gross')
+                      ? 'bg-indigo-700 text-white shadow-xs'
+                      : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border border-stone-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    {scoreDisplayFormats.includes('gross') && <span>✓</span>}
+                    <span>Gross</span>
+                  </div>
+                  <span className="text-[9px] font-normal opacity-80">Individual Gross</span>
+                </button>
+
+                {/* Individual Net */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScoreDisplayFormats(prev => {
+                      if (prev.includes('net')) {
+                        if (prev.length <= 1) return prev;
+                        return prev.filter(f => f !== 'net');
+                      }
+                      return [...prev, 'net'];
+                    });
+                  }}
+                  className={`py-2 px-1 rounded-md text-xs font-bold font-mono transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    scoreDisplayFormats.includes('net')
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border border-stone-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    {scoreDisplayFormats.includes('net') && <span>✓</span>}
+                    <span>Net</span>
+                  </div>
+                  <span className="text-[9px] font-normal opacity-80">Handicap Adjusted</span>
+                </button>
+
+                {/* Stableford Points */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScoreDisplayFormats(prev => {
+                      if (prev.includes('points')) {
+                        if (prev.length <= 1) return prev;
+                        return prev.filter(f => f !== 'points');
+                      }
+                      return [...prev, 'points'];
+                    });
+                  }}
+                  className={`py-2 px-1 rounded-md text-xs font-bold font-mono transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    scoreDisplayFormats.includes('points')
+                      ? 'bg-amber-500 text-stone-950 font-extrabold shadow-xs'
+                      : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border border-stone-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    {scoreDisplayFormats.includes('points') && <span>✓</span>}
+                    <span>Stableford</span>
+                  </div>
+                  <span className="text-[9px] font-normal opacity-80">Points Awarded</span>
+                </button>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex items-center gap-1.5 text-[10px] text-stone-500 pt-0.5 font-mono">
+                <span className="uppercase text-stone-400">Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => setScoreDisplayFormats(['gross', 'net', 'points'])}
+                  className="text-emerald-800 hover:underline font-semibold"
+                >
+                  All Three
+                </button>
+                <span>&middot;</span>
+                <button
+                  type="button"
+                  onClick={() => setScoreDisplayFormats(['gross', 'net'])}
+                  className="text-emerald-800 hover:underline font-semibold"
+                >
+                  Gross & Net
+                </button>
+                <span>&middot;</span>
+                <button
+                  type="button"
+                  onClick={() => setScoreDisplayFormats(['net', 'points'])}
+                  className="text-emerald-800 hover:underline font-semibold"
+                >
+                  Net & Points
+                </button>
+                <span>&middot;</span>
+                <button
+                  type="button"
+                  onClick={() => setScoreDisplayFormats(['points'])}
+                  className="text-emerald-800 hover:underline font-semibold"
+                >
+                  Stableford Only
+                </button>
+              </div>
             </div>
 
             {/* When Live/In Progress is selected in tournament status, add option to create and edit live leaderboard for that tournament */}
@@ -644,6 +797,14 @@ export default function EventsTab({
                     <p className="text-xs text-stone-300">
                       Manage real-time player scores, thru-holes, round tallies, and live standings for this tournament.
                     </p>
+                    <div className="flex items-center gap-2 pt-1 font-mono text-[11px] text-stone-300 flex-wrap">
+                      <span className="bg-stone-800/90 border border-stone-700 px-2 py-0.5 rounded text-stone-300">
+                        Tracking: {roundsCount} {roundsCount === 1 ? 'Round (R1)' : `Rounds (R1–R${roundsCount})`}
+                      </span>
+                      <span className="bg-stone-800/90 border border-stone-700 px-2 py-0.5 rounded text-amber-300">
+                        Display: {scoreDisplayFormats.map(s => s === 'points' ? 'Stableford Points' : s.toUpperCase()).join(' + ')}
+                      </span>
+                    </div>
                   </div>
 
                   <button
@@ -1264,6 +1425,11 @@ export default function EventsTab({
           onSaveResults={async (targetId, newRes) => {
             if (setEventResults) {
               await setEventResults(targetId, newRes);
+            }
+          }}
+          onUpdateEvent={async (updated) => {
+            if (updateEvent) {
+              await updateEvent(updated);
             }
           }}
         />

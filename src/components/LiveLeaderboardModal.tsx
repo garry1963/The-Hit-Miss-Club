@@ -16,12 +16,14 @@ import {
   CheckCircle2, 
   Clock, 
   Flag, 
-  AlertCircle,
   Eye,
-  Edit3
+  Edit3,
+  Sliders,
+  Check,
+  RotateCcw
 } from 'lucide-react';
-import { Event, GolfCourse, Member, TournamentResult } from '../types';
-import { formatAppDate, getBaseEventId } from '../utils/dateUtils';
+import { Event, GolfCourse, Member, TournamentResult, StandingsScoreFormat } from '../types';
+import { formatAppDate } from '../utils/dateUtils';
 
 interface LiveLeaderboardModalProps {
   isOpen: boolean;
@@ -32,6 +34,7 @@ interface LiveLeaderboardModalProps {
   results: TournamentResult[];
   isAdmin: boolean;
   onSaveResults: (eventId: string, newResults: Omit<TournamentResult, 'id' | 'eventId'>[]) => Promise<void> | void;
+  onUpdateEvent?: (updated: Event) => Promise<void> | void;
 }
 
 interface LeaderboardDraftRow {
@@ -56,11 +59,23 @@ export default function LiveLeaderboardModal({
   members,
   results,
   isAdmin,
-  onSaveResults
+  onSaveResults,
+  onUpdateEvent
 }: LiveLeaderboardModalProps) {
   const isQualifier = event.classification === 'Qualifier' || event.title.includes('(Q)') || event.title.includes('Qualifier');
   const isMajor = event.classification === 'Major' || (event.roundsCount && event.roundsCount >= 4);
-  const roundsToRender = event.roundsCount ? Math.min(event.roundsCount, 4) : (isMajor ? 4 : 2);
+
+  // 1. Number of individual round scores tracked from 1 to 4 rounds
+  const initialTrackedRounds = event.roundsCount 
+    ? Math.min(Math.max(Number(event.roundsCount), 1), 4) 
+    : (isMajor ? 4 : 2);
+  const [trackedRounds, setTrackedRounds] = useState<number>(initialTrackedRounds);
+
+  // 2. Standings score display format from individual gross, net, or Stableford points or any combination of the three
+  const initialFormats: StandingsScoreFormat[] = (event.scoreDisplayFormats && event.scoreDisplayFormats.length > 0)
+    ? event.scoreDisplayFormats
+    : ['gross', 'net', 'points'];
+  const [scoreFormats, setScoreFormats] = useState<StandingsScoreFormat[]>(initialFormats);
 
   // Sub-entry selection (Main vs Alternate) for non-qualifiers
   const [entryType, setEntryType] = useState<'main' | 'alternate'>('main');
@@ -73,15 +88,24 @@ export default function LiveLeaderboardModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
 
   // Draft rows for editing
   const [draftRows, setDraftRows] = useState<LeaderboardDraftRow[]>([]);
 
+  // Keep trackedRounds and scoreFormats in sync when event prop changes
+  useEffect(() => {
+    if (event.roundsCount) {
+      setTrackedRounds(Math.min(Math.max(Number(event.roundsCount), 1), 4));
+    }
+    if (event.scoreDisplayFormats && event.scoreDisplayFormats.length > 0) {
+      setScoreFormats(event.scoreDisplayFormats);
+    }
+  }, [event.id, event.roundsCount, event.scoreDisplayFormats]);
+
   // Find existing results for this target event
   const currentResults = useMemo(() => {
-    // Check specific targetEventId first
     let res = results.filter(r => r.eventId === targetEventId);
-    // If not found and target is main, also check base event.id
     if (res.length === 0 && (targetEventId.endsWith('-main') || isQualifier)) {
       res = results.filter(r => r.eventId === event.id);
     }
@@ -114,6 +138,41 @@ export default function LiveLeaderboardModal({
   }, [currentResults, members, targetEventId]);
 
   if (!isOpen) return null;
+
+  // Toggle format in scoreFormats (ensures at least 1 format remains selected)
+  const toggleScoreFormat = (fmt: StandingsScoreFormat) => {
+    setScoreFormats(prev => {
+      if (prev.includes(fmt)) {
+        if (prev.length <= 1) return prev; // keep at least 1
+        return prev.filter(f => f !== fmt);
+      } else {
+        return [...prev, fmt];
+      }
+    });
+  };
+
+  const setFormatPreset = (preset: 'all' | 'gross_net' | 'net_points' | 'net_only' | 'points_only' | 'gross_only') => {
+    switch (preset) {
+      case 'all':
+        setScoreFormats(['gross', 'net', 'points']);
+        break;
+      case 'gross_net':
+        setScoreFormats(['gross', 'net']);
+        break;
+      case 'net_points':
+        setScoreFormats(['net', 'points']);
+        break;
+      case 'net_only':
+        setScoreFormats(['net']);
+        break;
+      case 'points_only':
+        setScoreFormats(['points']);
+        break;
+      case 'gross_only':
+        setScoreFormats(['gross']);
+        break;
+    }
+  };
 
   const handleAddPlayer = (memberId?: string) => {
     const chosenMember = memberId 
@@ -192,11 +251,11 @@ export default function LiveLeaderboardModal({
         (target as any)[field] = Number(value);
       }
 
-      // Recalculate Gross Score from rounds
+      // Recalculate Gross Score from active tracked rounds
       const r1 = Number(target.round1Score) || 0;
-      const r2 = Number(target.round2Score) || 0;
-      const r3 = roundsToRender >= 3 ? (Number(target.round3Score) || 0) : 0;
-      const r4 = roundsToRender >= 4 ? (Number(target.round4Score) || 0) : 0;
+      const r2 = trackedRounds >= 2 ? (Number(target.round2Score) || 0) : 0;
+      const r3 = trackedRounds >= 3 ? (Number(target.round3Score) || 0) : 0;
+      const r4 = trackedRounds >= 4 ? (Number(target.round4Score) || 0) : 0;
       
       const calculatedGross = r1 + r2 + r3 + r4;
       if (calculatedGross > 0 || r1 > 0 || r2 > 0) {
@@ -212,12 +271,14 @@ export default function LiveLeaderboardModal({
   const handleAutoSort = () => {
     setDraftRows(prev => {
       const sorted = [...prev].sort((a, b) => {
-        if (event.format === 'Stableford') {
+        // Sort according to active score formats and event rules
+        if (scoreFormats.includes('points') && (event.format === 'Stableford' || !scoreFormats.includes('net'))) {
           return b.points - a.points || a.netScore - b.netScore;
-        } else if (event.format === 'Stroke Play') {
-          return a.grossScore - b.grossScore || a.netScore - b.netScore;
+        } else if (scoreFormats.includes('net')) {
+          return a.netScore - b.netScore || a.grossScore - b.grossScore;
+        } else {
+          return a.grossScore - b.grossScore;
         }
-        return a.netScore - b.netScore || a.grossScore - b.grossScore;
       });
 
       // Assign position numbers (handling ties)
@@ -225,9 +286,11 @@ export default function LiveLeaderboardModal({
       return sorted.map((row, idx) => {
         if (idx > 0) {
           const prevRow = sorted[idx - 1];
-          const isTied = event.format === 'Stableford'
+          const isTied = scoreFormats.includes('points') && event.format === 'Stableford'
             ? prevRow.points === row.points
-            : prevRow.netScore === row.netScore;
+            : scoreFormats.includes('net')
+              ? prevRow.netScore === row.netScore
+              : prevRow.grossScore === row.grossScore;
           if (!isTied) {
             currentRank = idx + 1;
           }
@@ -264,15 +327,29 @@ export default function LiveLeaderboardModal({
         points: Number(r.points) || 0,
         position: Number(r.position) || 1,
         round1Score: Number(r.round1Score) || 0,
-        round2Score: Number(r.round2Score) || 0,
-        round3Score: roundsToRender >= 3 ? (Number(r.round3Score) || 0) : undefined,
-        round4Score: roundsToRender >= 4 ? (Number(r.round4Score) || 0) : undefined,
+        round2Score: trackedRounds >= 2 ? (Number(r.round2Score) || 0) : undefined,
+        round3Score: trackedRounds >= 3 ? (Number(r.round3Score) || 0) : undefined,
+        round4Score: trackedRounds >= 4 ? (Number(r.round4Score) || 0) : undefined,
         thru: r.thru || 'F'
       }));
 
       await onSaveResults(targetEventId, payload);
-      setSaveSuccessMsg('✓ Live Leaderboard updated & saved to real-time database!');
-      setTimeout(() => setSaveSuccessMsg(''), 4500);
+
+      // Persist tracked rounds count and standings score display format to event if updated
+      if (onUpdateEvent && (event.roundsCount !== trackedRounds || JSON.stringify(event.scoreDisplayFormats) !== JSON.stringify(scoreFormats))) {
+        try {
+          await onUpdateEvent({
+            ...event,
+            roundsCount: trackedRounds,
+            scoreDisplayFormats: scoreFormats
+          });
+        } catch {
+          // ignore background update error
+        }
+      }
+
+      setSaveSuccessMsg(`✓ Live Leaderboard updated & synced in real-time! (${trackedRounds} ${trackedRounds === 1 ? 'Round' : 'Rounds'} tracked • Displaying: ${scoreFormats.map(s => s === 'points' ? 'Stableford Points' : s.toUpperCase()).join(', ')})`);
+      setTimeout(() => setSaveSuccessMsg(''), 5000);
       setMode('view');
     } catch (err: any) {
       alert('Error saving live leaderboard: ' + (err.message || 'Unknown error'));
@@ -285,20 +362,31 @@ export default function LiveLeaderboardModal({
     const listToExport = mode === 'edit' ? draftRows : currentResults;
     if (listToExport.length === 0) return;
 
-    const headers = ['Position', 'Player Name', 'Handicap', 'Thru', 'R1', 'R2', 'Gross', 'Net', 'Points'];
+    const headers = ['Position', 'Player Name', 'Handicap', 'Thru'];
+    if (trackedRounds >= 1) headers.push('R1');
+    if (trackedRounds >= 2) headers.push('R2');
+    if (trackedRounds >= 3) headers.push('R3');
+    if (trackedRounds >= 4) headers.push('R4');
+    if (scoreFormats.includes('gross')) headers.push('Gross');
+    if (scoreFormats.includes('net')) headers.push('Net');
+    if (scoreFormats.includes('points')) headers.push('Points');
+
     const rows = listToExport.map(r => {
       const mem = members.find(m => m.id === r.playerId);
-      return [
+      const rowArr: any[] = [
         r.position,
         `"${mem?.name || 'Unknown'}"`,
         r.handicap ?? mem?.handicap ?? '',
-        r.thru || 'F',
-        r.round1Score || 0,
-        r.round2Score || 0,
-        r.grossScore || 0,
-        r.netScore || 0,
-        r.points || 0
+        r.thru || 'F'
       ];
+      if (trackedRounds >= 1) rowArr.push(r.round1Score || 0);
+      if (trackedRounds >= 2) rowArr.push(r.round2Score || 0);
+      if (trackedRounds >= 3) rowArr.push(r.round3Score || 0);
+      if (trackedRounds >= 4) rowArr.push(r.round4Score || 0);
+      if (scoreFormats.includes('gross')) rowArr.push(r.grossScore || 0);
+      if (scoreFormats.includes('net')) rowArr.push(r.netScore || 0);
+      if (scoreFormats.includes('points')) rowArr.push(r.points || 0);
+      return rowArr;
     });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -311,7 +399,6 @@ export default function LiveLeaderboardModal({
     document.body.removeChild(link);
   };
 
-  // Helper formatting for score vs par
   const formatScoreVsPar = (score: number) => {
     if (score > 0) return `+${score}`;
     if (score < 0) return `${score}`;
@@ -366,21 +453,21 @@ export default function LiveLeaderboardModal({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => setMode(mode === 'view' ? 'edit' : 'view')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm ${
                   mode === 'edit'
                     ? 'bg-amber-400 hover:bg-amber-300 text-stone-950'
-                    : 'bg-red-600 hover:bg-red-500 text-white shadow-md'
+                    : 'bg-red-600 hover:bg-red-500 text-white'
                 }`}
               >
                 {mode === 'edit' ? (
                   <>
                     <Eye className="w-3.5 h-3.5" />
-                    <span>View Leaderboard</span>
+                    <span>View Standings</span>
                   </>
                 ) : (
                   <>
@@ -390,6 +477,20 @@ export default function LiveLeaderboardModal({
                 )}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setShowConfigPanel(!showConfigPanel)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 border transition cursor-pointer ${
+                showConfigPanel
+                  ? 'bg-emerald-800 text-emerald-100 border-emerald-600'
+                  : 'bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700'
+              }`}
+              title="Configure rounds and standings display formats"
+            >
+              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+              <span>Rounds & Format</span>
+            </button>
 
             <button
               onClick={handleExportCSV}
@@ -410,46 +511,228 @@ export default function LiveLeaderboardModal({
           </div>
         </div>
 
-        {/* Sub-entry selector (Main vs Alternate) if tournament has split competitions */}
-        {!isQualifier && (
-          <div className="bg-stone-950/80 px-5 sm:px-7 py-2.5 border-b border-stone-800 flex items-center justify-between gap-3 flex-wrap shrink-0">
-            <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="text-stone-400 uppercase text-[10px]">Division Entry:</span>
+        {/* Dynamic Rounds & Standings Display Format Configuration Panel */}
+        {showConfigPanel && (
+          <div className="bg-stone-950 border-b border-stone-800 p-4 sm:p-5 space-y-4 animate-fadeIn shrink-0">
+            <div className="flex items-center justify-between border-b border-stone-850 pb-2">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-stone-200">
+                  Leaderboard Scoring & Standings Display Settings
+                </h4>
+              </div>
               <button
                 type="button"
-                onClick={() => setEntryType('main')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition ${
-                  entryType === 'main'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-stone-800 text-stone-400 hover:text-white'
-                }`}
+                onClick={() => setShowConfigPanel(false)}
+                className="text-stone-400 hover:text-white text-xs"
               >
-                🏆 Main Entry
-              </button>
-              <button
-                type="button"
-                onClick={() => setEntryType('alternate')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition ${
-                  entryType === 'alternate'
-                    ? 'bg-amber-500 text-stone-950 shadow-xs font-extrabold'
-                    : 'bg-stone-800 text-stone-400 hover:text-white'
-                }`}
-              >
-                ⛳ Alternate Entry
+                Done
               </button>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-stone-400 font-mono">
-              {leaderMember && (
-                <span className="text-amber-300 flex items-center gap-1 font-bold">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Leader: {leaderMember.name} ({formatScoreVsPar(leaderResult.netScore)})</span>
-                </span>
-              )}
-              <span>Field: {currentResults.length} Players</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 1. Tracked Rounds Selection (1 to 4 rounds) */}
+              <div className="space-y-1.5 bg-stone-900/90 p-3.5 rounded-xl border border-stone-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono uppercase font-bold text-stone-300 flex items-center gap-1.5">
+                    <span>Individual Rounds Tracked</span>
+                    <span className="text-[10px] text-amber-400 font-normal">(1 to 4 rounds)</span>
+                  </label>
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                    Active: {trackedRounds} {trackedRounds === 1 ? 'Round' : 'Rounds'} (R1{trackedRounds >= 2 ? `–R${trackedRounds}` : ''})
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 pt-1">
+                  {[1, 2, 3, 4].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setTrackedRounds(num)}
+                      className={`py-2 px-1 text-center rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        trackedRounds === num
+                          ? 'bg-emerald-600 text-white shadow-md border border-emerald-400'
+                          : 'bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-750 border border-stone-700'
+                      }`}
+                    >
+                      <div>{num} {num === 1 ? 'Round' : 'Rounds'}</div>
+                      <div className="text-[9px] font-normal opacity-80">
+                        {num === 1 ? 'R1 only' : num === 2 ? 'R1 & R2' : num === 3 ? 'R1, R2, R3' : 'R1 to R4'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Standings Score Display Format Selection (Gross, Net, Stableford Points or any combination) */}
+              <div className="space-y-1.5 bg-stone-900/90 p-3.5 rounded-xl border border-stone-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono uppercase font-bold text-stone-300 flex items-center gap-1.5">
+                    <span>Standings Display Format</span>
+                    <span className="text-[10px] text-amber-400 font-normal">(Any combination)</span>
+                  </label>
+                  <span className="text-[10px] font-mono text-stone-400">
+                    {scoreFormats.length} selected
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  {/* Gross Format */}
+                  <button
+                    type="button"
+                    onClick={() => toggleScoreFormat('gross')}
+                    className={`py-2 px-2 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      scoreFormats.includes('gross')
+                        ? 'bg-indigo-600 text-white border border-indigo-400 shadow-sm'
+                        : 'bg-stone-800 text-stone-400 hover:text-white border border-stone-700'
+                    }`}
+                  >
+                    {scoreFormats.includes('gross') && <Check className="w-3.5 h-3.5 text-white" />}
+                    <span>Gross</span>
+                  </button>
+
+                  {/* Net Format */}
+                  <button
+                    type="button"
+                    onClick={() => toggleScoreFormat('net')}
+                    className={`py-2 px-2 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      scoreFormats.includes('net')
+                        ? 'bg-emerald-600 text-white border border-emerald-400 shadow-sm'
+                        : 'bg-stone-800 text-stone-400 hover:text-white border border-stone-700'
+                    }`}
+                  >
+                    {scoreFormats.includes('net') && <Check className="w-3.5 h-3.5 text-white" />}
+                    <span>Net</span>
+                  </button>
+
+                  {/* Stableford Points Format */}
+                  <button
+                    type="button"
+                    onClick={() => toggleScoreFormat('points')}
+                    className={`py-2 px-2 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      scoreFormats.includes('points')
+                        ? 'bg-amber-500 text-stone-950 font-extrabold border border-amber-300 shadow-sm'
+                        : 'bg-stone-800 text-stone-400 hover:text-white border border-stone-700'
+                    }`}
+                  >
+                    {scoreFormats.includes('points') && <Check className="w-3.5 h-3.5 text-stone-950" />}
+                    <span>Stableford</span>
+                  </button>
+                </div>
+
+                {/* Quick Combination Presets */}
+                <div className="pt-2 flex items-center gap-1.5 flex-wrap text-[10px] font-mono">
+                  <span className="text-stone-500 uppercase">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormatPreset('all')}
+                    className="bg-stone-800 hover:bg-stone-700 px-2 py-0.5 rounded text-stone-300 hover:text-white"
+                  >
+                    All Three
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormatPreset('gross_net')}
+                    className="bg-stone-800 hover:bg-stone-700 px-2 py-0.5 rounded text-stone-300 hover:text-white"
+                  >
+                    Gross & Net
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormatPreset('net_points')}
+                    className="bg-stone-800 hover:bg-stone-700 px-2 py-0.5 rounded text-stone-300 hover:text-white"
+                  >
+                    Net & Points
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormatPreset('net_only')}
+                    className="bg-stone-800 hover:bg-stone-700 px-2 py-0.5 rounded text-stone-300 hover:text-white"
+                  >
+                    Net Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormatPreset('points_only')}
+                    className="bg-stone-800 hover:bg-stone-700 px-2 py-0.5 rounded text-stone-300 hover:text-white"
+                  >
+                    Stableford Only
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Quick Format & Round Badges Ribbon */}
+        <div className="bg-stone-950/95 px-5 sm:px-7 py-2.5 border-b border-stone-800 flex items-center justify-between gap-3 flex-wrap shrink-0 text-xs">
+          <div className="flex items-center gap-3 flex-wrap font-mono">
+            {!isQualifier && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-stone-400 uppercase text-[10px]">Division:</span>
+                <button
+                  type="button"
+                  onClick={() => setEntryType('main')}
+                  className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase transition ${
+                    entryType === 'main'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-stone-800 text-stone-400 hover:text-white'
+                  }`}
+                >
+                  🏆 Main
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEntryType('alternate')}
+                  className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase transition ${
+                    entryType === 'alternate'
+                      ? 'bg-amber-500 text-stone-950 shadow-xs font-extrabold'
+                      : 'bg-stone-800 text-stone-400 hover:text-white'
+                  }`}
+                >
+                  ⛳ Alternate
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-stone-400 uppercase text-[10px]">Rounds:</span>
+              <span className="bg-stone-800 text-stone-200 border border-stone-700 px-2 py-0.5 rounded font-mono font-bold text-[11px]">
+                {trackedRounds} {trackedRounds === 1 ? 'Round (R1)' : `Rounds (R1–R${trackedRounds})`}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-stone-400 uppercase text-[10px]">Display:</span>
+              <div className="flex items-center gap-1">
+                {scoreFormats.includes('gross') && (
+                  <span className="bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    Gross
+                  </span>
+                )}
+                {scoreFormats.includes('net') && (
+                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-700/60 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    Net
+                  </span>
+                )}
+                {scoreFormats.includes('points') && (
+                  <span className="bg-amber-950 text-amber-300 border border-amber-700/60 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    Stableford
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-stone-400 font-mono">
+            {leaderMember && (
+              <span className="text-amber-300 flex items-center gap-1 font-bold">
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                <span>Leader: {leaderMember.name} ({scoreFormats.includes('net') ? formatScoreVsPar(leaderResult.netScore) : `${leaderResult.grossScore} Gross`})</span>
+              </span>
+            )}
+            <span>Field: {currentResults.length} Players</span>
+          </div>
+        </div>
 
         {/* Success Alert Banner */}
         {saveSuccessMsg && (
@@ -471,7 +754,7 @@ export default function LiveLeaderboardModal({
                     Live Scorecard Editor
                   </h3>
                   <p className="text-xs text-stone-400">
-                    Enter individual round scores, thru-holes, and handicaps. Gross, net and rank calculate automatically.
+                    Tracking {trackedRounds} {trackedRounds === 1 ? 'Round' : 'Rounds'}. Displaying {scoreFormats.map(s => s === 'points' ? 'Stableford Points' : s.toUpperCase()).join(' & ')}. Gross score auto-calculates from active rounds.
                   </p>
                 </div>
 
@@ -499,7 +782,7 @@ export default function LiveLeaderboardModal({
                     type="button"
                     onClick={handleAutoSort}
                     className="bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition"
-                    title="Sort rows by net score/points and update ranks"
+                    title="Sort rows by active score format and update ranks"
                   >
                     <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Auto-Sort Rank</span>
@@ -545,20 +828,30 @@ export default function LiveLeaderboardModal({
                 </div>
               ) : (
                 <div className="bg-stone-950 rounded-2xl border border-stone-800 overflow-x-auto shadow-inner">
-                  <table className="w-full text-xs text-left border-collapse min-w-[720px]">
+                  <table className="w-full text-xs text-left border-collapse min-w-[750px]">
                     <thead>
                       <tr className="bg-stone-900 border-b border-stone-800 text-[10px] font-mono uppercase text-stone-400 tracking-wider">
                         <th className="p-3 w-14 text-center">Pos</th>
-                        <th className="p-3 min-w-[180px]">Player Member</th>
+                        <th className="p-3 min-w-[170px]">Player Member</th>
                         <th className="p-3 w-20 text-center">Thru</th>
-                        <th className="p-3 w-20 text-center">R1</th>
-                        <th className="p-3 w-20 text-center">R2</th>
-                        {roundsToRender >= 3 && <th className="p-3 w-20 text-center">R3</th>}
-                        {roundsToRender >= 4 && <th className="p-3 w-20 text-center">R4</th>}
-                        <th className="p-3 w-20 text-center">Gross</th>
-                        <th className="p-3 w-20 text-center">HCP</th>
-                        <th className="p-3 w-20 text-center">Net</th>
-                        <th className="p-3 w-20 text-center">Points</th>
+                        
+                        {/* Dynamic Round Columns (1 to 4 rounds) */}
+                        <th className="p-3 w-18 text-center text-stone-300">R1</th>
+                        {trackedRounds >= 2 && <th className="p-3 w-18 text-center text-stone-300">R2</th>}
+                        {trackedRounds >= 3 && <th className="p-3 w-18 text-center text-stone-300">R3</th>}
+                        {trackedRounds >= 4 && <th className="p-3 w-18 text-center text-stone-300">R4</th>}
+                        
+                        {/* Dynamic Standings Display Format Columns */}
+                        {scoreFormats.includes('gross') && (
+                          <th className="p-3 w-20 text-center text-indigo-300">Gross</th>
+                        )}
+                        <th className="p-3 w-18 text-center">HCP</th>
+                        {scoreFormats.includes('net') && (
+                          <th className="p-3 w-20 text-center text-emerald-400">Net</th>
+                        )}
+                        {scoreFormats.includes('points') && (
+                          <th className="p-3 w-20 text-center text-amber-300">Points</th>
+                        )}
                         <th className="p-3 w-12 text-center">Act</th>
                       </tr>
                     </thead>
@@ -613,17 +906,19 @@ export default function LiveLeaderboardModal({
                           </td>
 
                           {/* Round 2 */}
-                          <td className="p-2 text-center">
-                            <input
-                              type="number"
-                              value={row.round2Score ?? 0}
-                              onChange={e => handleFieldChange(idx, 'round2Score', e.target.value)}
-                              className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500"
-                            />
-                          </td>
+                          {trackedRounds >= 2 && (
+                            <td className="p-2 text-center">
+                              <input
+                                type="number"
+                                value={row.round2Score ?? 0}
+                                onChange={e => handleFieldChange(idx, 'round2Score', e.target.value)}
+                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500"
+                              />
+                            </td>
+                          )}
 
                           {/* Round 3 */}
-                          {roundsToRender >= 3 && (
+                          {trackedRounds >= 3 && (
                             <td className="p-2 text-center">
                               <input
                                 type="number"
@@ -635,7 +930,7 @@ export default function LiveLeaderboardModal({
                           )}
 
                           {/* Round 4 */}
-                          {roundsToRender >= 4 && (
+                          {trackedRounds >= 4 && (
                             <td className="p-2 text-center">
                               <input
                                 type="number"
@@ -647,9 +942,11 @@ export default function LiveLeaderboardModal({
                           )}
 
                           {/* Gross Score */}
-                          <td className="p-2 text-center font-mono font-bold text-stone-200">
-                            {row.grossScore}
-                          </td>
+                          {scoreFormats.includes('gross') && (
+                            <td className="p-2 text-center font-mono font-bold text-indigo-300">
+                              {row.grossScore}
+                            </td>
+                          )}
 
                           {/* Handicap */}
                           <td className="p-2 text-center">
@@ -662,19 +959,23 @@ export default function LiveLeaderboardModal({
                           </td>
 
                           {/* Net Score */}
-                          <td className="p-2 text-center font-mono font-extrabold text-emerald-400">
-                            {row.netScore}
-                          </td>
+                          {scoreFormats.includes('net') && (
+                            <td className="p-2 text-center font-mono font-extrabold text-emerald-400">
+                              {row.netScore}
+                            </td>
+                          )}
 
                           {/* Points */}
-                          <td className="p-2 text-center">
-                            <input
-                              type="number"
-                              value={row.points ?? 0}
-                              onChange={e => handleFieldChange(idx, 'points', e.target.value)}
-                              className="w-14 bg-stone-900 border border-stone-750 text-amber-300 font-mono text-center py-1 rounded focus:outline-none focus:border-amber-400"
-                            />
-                          </td>
+                          {scoreFormats.includes('points') && (
+                            <td className="p-2 text-center">
+                              <input
+                                type="number"
+                                value={row.points ?? 0}
+                                onChange={e => handleFieldChange(idx, 'points', e.target.value)}
+                                className="w-14 bg-stone-900 border border-stone-750 text-amber-300 font-mono text-center py-1 rounded focus:outline-none focus:border-amber-400"
+                              />
+                            </td>
+                          )}
 
                           {/* Remove */}
                           <td className="p-2 text-center">
@@ -713,16 +1014,27 @@ export default function LiveLeaderboardModal({
                   </span>
                 </div>
 
-                {isAdmin && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setMode('edit')}
-                    className="bg-red-600 hover:bg-red-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                    onClick={() => setShowConfigPanel(!showConfigPanel)}
+                    className="bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-750 px-3 py-1.5 rounded-xl text-xs font-mono flex items-center gap-1.5 transition cursor-pointer"
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Enter / Edit Scores</span>
+                    <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Display Options</span>
                   </button>
-                )}
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setMode('edit')}
+                      className="bg-red-600 hover:bg-red-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Enter / Edit Scores</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {filteredViewRows.length === 0 ? (
@@ -755,14 +1067,24 @@ export default function LiveLeaderboardModal({
                         <th className="p-3 w-14 text-center">Pos</th>
                         <th className="p-3">Player</th>
                         <th className="p-3 w-20 text-center">Thru</th>
-                        <th className="p-3 w-16 text-center">R1</th>
-                        <th className="p-3 w-16 text-center">R2</th>
-                        {roundsToRender >= 3 && <th className="p-3 w-16 text-center">R3</th>}
-                        {roundsToRender >= 4 && <th className="p-3 w-16 text-center">R4</th>}
-                        <th className="p-3 w-20 text-center">Gross</th>
+
+                        {/* Dynamic Round Columns (1 to 4 rounds) */}
+                        <th className="p-3 w-16 text-center text-stone-300">R1</th>
+                        {trackedRounds >= 2 && <th className="p-3 w-16 text-center text-stone-300">R2</th>}
+                        {trackedRounds >= 3 && <th className="p-3 w-16 text-center text-stone-300">R3</th>}
+                        {trackedRounds >= 4 && <th className="p-3 w-16 text-center text-stone-300">R4</th>}
+
+                        {/* Dynamic Standings Display Format Columns */}
+                        {scoreFormats.includes('gross') && (
+                          <th className="p-3 w-20 text-center text-indigo-300">Gross</th>
+                        )}
                         <th className="p-3 w-16 text-center">HCP</th>
-                        <th className="p-3 w-20 text-center">Net</th>
-                        <th className="p-3 w-20 text-center">Points</th>
+                        {scoreFormats.includes('net') && (
+                          <th className="p-3 w-20 text-center text-emerald-400">Net</th>
+                        )}
+                        {scoreFormats.includes('points') && (
+                          <th className="p-3 w-20 text-center text-amber-300">Points</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-850">
@@ -832,28 +1154,32 @@ export default function LiveLeaderboardModal({
                             </td>
 
                             {/* Round 2 */}
-                            <td className="p-3 text-center font-mono text-stone-300">
-                              {r.round2Score || '-'}
-                            </td>
+                            {trackedRounds >= 2 && (
+                              <td className="p-3 text-center font-mono text-stone-300">
+                                {r.round2Score || '-'}
+                              </td>
+                            )}
 
                             {/* Round 3 */}
-                            {roundsToRender >= 3 && (
+                            {trackedRounds >= 3 && (
                               <td className="p-3 text-center font-mono text-stone-300">
                                 {r.round3Score || '-'}
                               </td>
                             )}
 
                             {/* Round 4 */}
-                            {roundsToRender >= 4 && (
+                            {trackedRounds >= 4 && (
                               <td className="p-3 text-center font-mono text-stone-300">
                                 {r.round4Score || '-'}
                               </td>
                             )}
 
                             {/* Gross Score */}
-                            <td className="p-3 text-center font-mono font-bold text-stone-200">
-                              {r.grossScore}
-                            </td>
+                            {scoreFormats.includes('gross') && (
+                              <td className="p-3 text-center font-mono font-bold text-indigo-300">
+                                {r.grossScore}
+                              </td>
+                            )}
 
                             {/* Handicap */}
                             <td className="p-3 text-center font-mono text-stone-400">
@@ -861,14 +1187,18 @@ export default function LiveLeaderboardModal({
                             </td>
 
                             {/* Net Score */}
-                            <td className="p-3 text-center font-mono font-extrabold text-sm text-emerald-400">
-                              {r.netScore}
-                            </td>
+                            {scoreFormats.includes('net') && (
+                              <td className="p-3 text-center font-mono font-extrabold text-sm text-emerald-400">
+                                {r.netScore}
+                              </td>
+                            )}
 
                             {/* Points */}
-                            <td className="p-3 text-center font-mono font-bold text-amber-300">
-                              {r.points}
-                            </td>
+                            {scoreFormats.includes('points') && (
+                              <td className="p-3 text-center font-mono font-bold text-amber-300">
+                                {r.points}
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
@@ -885,7 +1215,7 @@ export default function LiveLeaderboardModal({
         <div className="bg-stone-950 px-5 sm:px-7 py-3 border-t border-stone-800 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2 text-stone-400 text-xs font-mono">
             <Clock className="w-3.5 h-3.5 text-stone-500" />
-            <span>Real-time live synced</span>
+            <span>Tracking: {trackedRounds} {trackedRounds === 1 ? 'Round' : 'Rounds'} • Standings: {scoreFormats.map(s => s === 'points' ? 'Stableford Points' : s.toUpperCase()).join(' + ')}</span>
           </div>
 
           <div className="flex items-center gap-2">
