@@ -35,6 +35,7 @@ interface LiveLeaderboardModalProps {
   isAdmin: boolean;
   onSaveResults: (eventId: string, newResults: Omit<TournamentResult, 'id' | 'eventId'>[]) => Promise<void> | void;
   onUpdateEvent?: (updated: Event) => Promise<void> | void;
+  defaultDivision?: 'main' | 'alternate';
 }
 
 interface LeaderboardDraftRow {
@@ -60,7 +61,8 @@ export default function LiveLeaderboardModal({
   results,
   isAdmin,
   onSaveResults,
-  onUpdateEvent
+  onUpdateEvent,
+  defaultDivision
 }: LiveLeaderboardModalProps) {
   const isQualifier = event.classification === 'Qualifier' || event.title.includes('(Q)') || event.title.includes('Qualifier');
   const isMajor = event.classification === 'Major' || (event.roundsCount && event.roundsCount >= 4);
@@ -78,7 +80,7 @@ export default function LiveLeaderboardModal({
   const [scoreFormats, setScoreFormats] = useState<StandingsScoreFormat[]>(initialFormats);
 
   // Sub-entry selection (Main vs Alternate) for non-qualifiers
-  const [entryType, setEntryType] = useState<'main' | 'alternate'>('main');
+  const [entryType, setEntryType] = useState<'main' | 'alternate'>(defaultDivision || 'main');
   const targetEventId = isQualifier 
     ? event.id 
     : (entryType === 'alternate' ? `${event.id}-alternate` : `${event.id}-main`);
@@ -101,7 +103,27 @@ export default function LiveLeaderboardModal({
     if (event.scoreDisplayFormats && event.scoreDisplayFormats.length > 0) {
       setScoreFormats(event.scoreDisplayFormats);
     }
-  }, [event.id, event.roundsCount, event.scoreDisplayFormats]);
+    if (defaultDivision) {
+      setEntryType(defaultDivision);
+    }
+  }, [event.id, event.roundsCount, event.scoreDisplayFormats, defaultDivision]);
+
+  const coursePar = course?.par || 72;
+
+  const getScoreVsPar = (score: number) => {
+    if (score === undefined || score === null) return 0;
+    if (score > 30 || score < -30) {
+      return score - coursePar;
+    }
+    return score;
+  };
+
+  const formatScoreVsPar = (score: number) => {
+    const vsPar = getScoreVsPar(score);
+    if (vsPar > 0) return `+${vsPar}`;
+    if (vsPar < 0) return `${vsPar}`;
+    return 'E';
+  };
 
   // Find existing results for this target event
   const currentResults = useMemo(() => {
@@ -113,17 +135,30 @@ export default function LiveLeaderboardModal({
       if (a.position !== b.position && a.position > 0 && b.position > 0) {
         return a.position - b.position;
       }
-      if (scoreFormats.includes('points') && (event.format === 'Stableford' || !scoreFormats.includes('net'))) {
-        return (b.points || 0) - (a.points || 0) || (a.netScore || 0) - (b.netScore || 0);
-      } else if (scoreFormats.includes('gross') && !scoreFormats.includes('net')) {
-        return (a.grossScore || 0) - (b.grossScore || 0) || (a.netScore || 0) - (b.netScore || 0);
-      } else if (scoreFormats.includes('net') && !scoreFormats.includes('gross')) {
-        return (a.netScore || 0) - (b.netScore || 0) || (a.grossScore || 0) - (b.grossScore || 0);
+      const hasGross = scoreFormats.includes('gross');
+      const hasNet = scoreFormats.includes('net');
+      const hasPoints = scoreFormats.includes('points');
+
+      const grossA = getScoreVsPar(a.grossScore);
+      const grossB = getScoreVsPar(b.grossScore);
+      const netA = getScoreVsPar(a.netScore);
+      const netB = getScoreVsPar(b.netScore);
+      const ptsA = a.points || 0;
+      const ptsB = b.points || 0;
+
+      if (hasPoints && (event.format === 'Stableford' || (!hasNet && !hasGross))) {
+        return ptsB - ptsA || grossA - grossB;
+      } else if (hasGross && !hasNet && !hasPoints) {
+        return grossA - grossB || netA - netB;
+      } else if (hasNet && !hasGross && !hasPoints) {
+        return netA - netB || grossA - grossB;
+      } else if (hasGross && hasNet) {
+        return grossA - grossB || netA - netB;
       } else {
-        return (a.netScore || 0) - (b.netScore || 0) || (a.grossScore || 0) - (b.grossScore || 0);
+        return netA - netB || grossA - grossB;
       }
     });
-  }, [results, targetEventId, event.id, isQualifier, scoreFormats, event.format]);
+  }, [results, targetEventId, event.id, isQualifier, scoreFormats, event.format, coursePar]);
 
   // Sync draftRows from currentResults whenever opening or switching entry type
   useEffect(() => {
@@ -299,16 +334,28 @@ export default function LiveLeaderboardModal({
 
   const handleAutoSort = () => {
     setDraftRows(prev => {
+      const hasGross = scoreFormats.includes('gross');
+      const hasNet = scoreFormats.includes('net');
+      const hasPoints = scoreFormats.includes('points');
+
       const sorted = [...prev].sort((a, b) => {
-        // Sort according to active score formats and event rules
-        if (scoreFormats.includes('points') && (event.format === 'Stableford' || !scoreFormats.includes('net'))) {
-          return b.points - a.points || a.netScore - b.netScore;
-        } else if (scoreFormats.includes('gross') && !scoreFormats.includes('net')) {
-          return a.grossScore - b.grossScore || a.netScore - b.netScore;
-        } else if (scoreFormats.includes('net') && !scoreFormats.includes('gross')) {
-          return a.netScore - b.netScore || a.grossScore - b.grossScore;
+        const grossA = getScoreVsPar(a.grossScore);
+        const grossB = getScoreVsPar(b.grossScore);
+        const netA = getScoreVsPar(a.netScore);
+        const netB = getScoreVsPar(b.netScore);
+        const ptsA = a.points || 0;
+        const ptsB = b.points || 0;
+
+        if (hasPoints && (event.format === 'Stableford' || (!hasNet && !hasGross))) {
+          return ptsB - ptsA || grossA - grossB;
+        } else if (hasGross && !hasNet && !hasPoints) {
+          return grossA - grossB || netA - netB;
+        } else if (hasNet && !hasGross && !hasPoints) {
+          return netA - netB || grossA - grossB;
+        } else if (hasGross && hasNet) {
+          return grossA - grossB || netA - netB;
         } else {
-          return a.netScore - b.netScore || a.grossScore - b.grossScore;
+          return netA - netB || grossA - grossB;
         }
       });
 
@@ -352,19 +399,22 @@ export default function LiveLeaderboardModal({
     setIsSaving(true);
     setSaveSuccessMsg('');
     try {
-      const payload: Omit<TournamentResult, 'id' | 'eventId'>[] = draftRows.map(r => ({
-        playerId: r.playerId,
-        grossScore: Number(r.grossScore) || 0,
-        handicap: Number(r.handicap) || 0,
-        netScore: Number(r.netScore) || 0,
-        points: Number(r.points) || 0,
-        position: Number(r.position) || 1,
-        round1Score: Number(r.round1Score) || 0,
-        round2Score: trackedRounds >= 2 ? (Number(r.round2Score) || 0) : undefined,
-        round3Score: trackedRounds >= 3 ? (Number(r.round3Score) || 0) : undefined,
-        round4Score: trackedRounds >= 4 ? (Number(r.round4Score) || 0) : undefined,
-        thru: r.thru || 'F'
-      }));
+      const payload: Omit<TournamentResult, 'id' | 'eventId'>[] = draftRows.map(r => {
+        const item: any = {
+          playerId: r.playerId,
+          grossScore: Number(r.grossScore) || 0,
+          handicap: Number(r.handicap) || 0,
+          netScore: Number(r.netScore) || 0,
+          points: Number(r.points) || 0,
+          position: Number(r.position) || 1,
+          round1Score: Number(r.round1Score) || 0,
+          thru: r.thru || 'F'
+        };
+        if (trackedRounds >= 2) item.round2Score = Number(r.round2Score) || 0;
+        if (trackedRounds >= 3) item.round3Score = Number(r.round3Score) || 0;
+        if (trackedRounds >= 4) item.round4Score = Number(r.round4Score) || 0;
+        return item;
+      });
 
       await onSaveResults(targetEventId, payload);
 
@@ -432,11 +482,7 @@ export default function LiveLeaderboardModal({
     document.body.removeChild(link);
   };
 
-  const formatScoreVsPar = (score: number) => {
-    if (score > 0) return `+${score}`;
-    if (score < 0) return `${score}`;
-    return 'E';
-  };
+
 
   const filteredViewRows = useMemo(() => {
     return currentResults.filter(r => {

@@ -50,6 +50,7 @@ export default function EventsTab({
   const [filterFormat, setFilterFormat] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Live' | 'Upcoming' | 'Completed'>('All');
   const [liveLeaderboardEvent, setLiveLeaderboardEvent] = useState<Event | null>(null);
+  const [liveLeaderboardDivision, setLiveLeaderboardDivision] = useState<'main' | 'alternate'>('main');
   
   // Form states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -993,6 +994,7 @@ export default function EventsTab({
             const isCurrentSpotlight = currentSpotlightEvent?.id === ev.id;
             const isExplicitlyPinned = configuredSpotlightId === ev.id;
             const isLive = isEventLive(ev);
+            const isQualifier = ev.classification === 'Qualifier' || ev.title.includes('(Q)') || ev.title.includes('Qualifier');
             
             return (
               <div
@@ -1096,19 +1098,54 @@ export default function EventsTab({
 
                   <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     {isLive ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLiveLeaderboardEvent(ev);
-                        }}
-                        className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded font-bold text-[10px] uppercase flex items-center gap-1 shadow-xs transition cursor-pointer"
-                        title={isAdmin ? "Open Live Leaderboard Editor" : "View Live Leaderboard"}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
-                        <Trophy className="w-3 h-3 text-red-600" />
-                        <span>{isAdmin ? 'Live Leaderboard' : 'Live Board'}</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isQualifier ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLiveLeaderboardDivision('main');
+                              setLiveLeaderboardEvent(ev);
+                            }}
+                            className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2.5 py-1 rounded font-bold text-[10px] uppercase flex items-center gap-1 shadow-xs transition cursor-pointer"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                            <Trophy className="w-3 h-3 text-red-600" />
+                            <span>{isAdmin ? 'Live Leaderboard' : 'Live Board'}</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLiveLeaderboardDivision('main');
+                                setLiveLeaderboardEvent(ev);
+                              }}
+                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded font-bold text-[10px] uppercase flex items-center gap-1 shadow-xs transition cursor-pointer"
+                              title="Main Division Live Leaderboard"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                              <Trophy className="w-3 h-3 text-emerald-700" />
+                              <span>🏆 Main Board</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLiveLeaderboardDivision('alternate');
+                                setLiveLeaderboardEvent(ev);
+                              }}
+                              className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1 rounded font-bold text-[10px] uppercase flex items-center gap-1 shadow-xs transition cursor-pointer"
+                              title="Alternate Division Live Leaderboard"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                              <Trophy className="w-3 h-3 text-amber-700" />
+                              <span>⛳ Alternate Board</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     ) : ev.status === 'Completed' ? (
                       <button 
                         onClick={() => setCurrentTab('results')}
@@ -1422,6 +1459,7 @@ export default function EventsTab({
           members={members}
           results={results}
           isAdmin={isAdmin}
+          defaultDivision={liveLeaderboardDivision}
           onSaveResults={async (targetId, newRes) => {
             if (setEventResults) {
               await setEventResults(targetId, newRes);
