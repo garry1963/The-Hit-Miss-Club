@@ -126,3 +126,31 @@ export interface StandingEntry {
   totalPoints: number;
   wins: number;
 }
+
+export interface VisitorLog {
+  id: string;
+  visitorId: string;
+  date: string; // YYYY-MM-DD
+  week: string; // YYYY-Www
+  month: string; // YYYY-MM
+  timestamp: string; // ISO
+  device?: string; // 'Desktop' | 'Mobile' | 'Tablet'
+  browser?: string;
+  page?: string;
+}
+
+export interface VisitorStats {
+  daily: number; // visitors today
+  dailyUnique: number;
+  weekly: number; // visitors this week
+  weeklyUnique: number;
+  monthly: number; // visitors this month
+  monthlyUnique: number;
+  total: number; // all-time visits
+  totalUnique: number;
+  dailyBreakdown: { date: string; count: number; unique: number; label: string }[];
+  weeklyBreakdown: { week: string; count: number; unique: number; label: string }[];
+  monthlyBreakdown: { month: string; count: number; unique: number; label: string }[];
+  recentLogs: VisitorLog[];
+}
+

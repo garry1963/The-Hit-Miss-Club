@@ -149,6 +149,23 @@
         "activeSeasonId": { "type": "string" }
       },
       "required": ["adminPassword", "activeSeasonId"]
+    },
+    "VisitorLog": {
+      "title": "VisitorLog",
+      "description": "Log of site visitor access for daily, weekly, and monthly analytics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "visitorId": { "type": "string" },
+        "date": { "type": "string" },
+        "week": { "type": "string" },
+        "month": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "device": { "type": "string" },
+        "browser": { "type": "string" },
+        "page": { "type": "string" }
+      },
+      "required": ["id", "visitorId", "date", "timestamp"]
     }
   },
   "firestore": {
@@ -191,6 +208,10 @@
     "/settings/{settingId}": {
       "schema": "ClubSettings",
       "description": "Global custom database configurations."
+    },
+    "/visitorLogs/{logId}": {
+      "schema": "VisitorLog",
+      "description": "Collection of visitor access logs for analytics."
     }
   }
 }

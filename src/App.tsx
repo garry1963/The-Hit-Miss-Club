@@ -175,6 +175,9 @@ export default function App() {
             updateMember={state.updateMember}
             siteContent={state.siteContent}
             updateSiteContent={state.updateSiteContent}
+            visitorStats={state.visitorStats}
+            recordVisit={state.recordVisit}
+            seedSampleVisitorData={state.seedSampleVisitorData}
           />
         );
       default:

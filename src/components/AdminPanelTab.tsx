@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff, Facebook, MessageSquare, Youtube, Mail, Phone, MapPin, Users, Globe } from 'lucide-react';
-import { NewsArticle, Member, Event, TournamentResult, GalleryImage, Season } from '../types';
+import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff, Facebook, MessageSquare, Youtube, Mail, Phone, MapPin, Users, Globe, Activity, BarChart3, TrendingUp, Smartphone, Monitor, CheckCircle2, Clock } from 'lucide-react';
+import { NewsArticle, Member, Event, TournamentResult, GalleryImage, Season, VisitorStats } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
 
 interface AdminPanelTabProps {
@@ -29,6 +29,9 @@ interface AdminPanelTabProps {
   updateMember: (updated: Member) => void;
   siteContent: Record<string, string>;
   updateSiteContent: (key: string, val: string) => void;
+  visitorStats?: VisitorStats;
+  recordVisit?: (pageName?: string, isManual?: boolean) => Promise<void>;
+  seedSampleVisitorData?: () => Promise<void>;
 }
 
 export default function AdminPanelTab({
@@ -51,7 +54,10 @@ export default function AdminPanelTab({
   deleteSeason,
   updateMember,
   siteContent,
-  updateSiteContent
+  updateSiteContent,
+  visitorStats,
+  recordVisit,
+  seedSampleVisitorData
 }: AdminPanelTabProps) {
   
   // Local admin states
@@ -80,6 +86,56 @@ export default function AdminPanelTab({
   const [newOfficerId, setNewOfficerId] = useState('');
   const [newOfficerTitle, setNewOfficerTitle] = useState('');
   const [newOfficerNotes, setNewOfficerNotes] = useState('');
+
+  // Visitor analytics states & controls
+  const [visitorViewMode, setVisitorViewMode] = useState<'daily' | 'weekly' | 'monthly' | 'recent'>('daily');
+  const [isLoggingTestHit, setIsLoggingTestHit] = useState(false);
+  const [isSeedingHistory, setIsSeedingHistory] = useState(false);
+  const [visitorNotice, setVisitorNotice] = useState<string | null>(null);
+
+  const defaultStats: VisitorStats = {
+    daily: 0,
+    dailyUnique: 0,
+    weekly: 0,
+    weeklyUnique: 0,
+    monthly: 0,
+    monthlyUnique: 0,
+    total: 0,
+    totalUnique: 0,
+    dailyBreakdown: [],
+    weeklyBreakdown: [],
+    monthlyBreakdown: [],
+    recentLogs: []
+  };
+  const stats = visitorStats || defaultStats;
+
+  const handleRecordTestHit = async () => {
+    if (!recordVisit) return;
+    setIsLoggingTestHit(true);
+    try {
+      await recordVisit('admin-test-hit', true);
+      setVisitorNotice('Recorded new visitor hit! Metrics updated in real-time.');
+      setTimeout(() => setVisitorNotice(null), 3500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoggingTestHit(false);
+    }
+  };
+
+  const handleSeedSampleHistory = async () => {
+    if (!seedSampleVisitorData) return;
+    setIsSeedingHistory(true);
+    try {
+      await seedSampleVisitorData();
+      setVisitorNotice('Sample 30-day historical visitor traffic generated successfully!');
+      setTimeout(() => setVisitorNotice(null), 4000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSeedingHistory(false);
+    }
+  };
 
   // Sync state values on siteContent load
   React.useEffect(() => {
@@ -331,6 +387,438 @@ export default function AdminPanelTab({
           <span className="text-3xl font-display font-bold text-stone-800 mt-2 block font-mono">{news.length}</span>
         </div>
 
+      </section>
+
+      {/* 3. Site Visitor Analytics Section */}
+      <section className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-150 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-emerald-100 text-[#064e3b] rounded-xl">
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <h2 className="font-display font-bold text-xl text-stone-900 uppercase tracking-tight">
+                Site Visitor Analytics
+              </h2>
+              <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Live Tracking
+              </span>
+            </div>
+            <p className="text-stone-500 text-xs mt-1">
+              Real-time daily, weekly, and monthly visitor traffic counts and unique visitor metrics.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {recordVisit && (
+              <button
+                type="button"
+                onClick={handleRecordTestHit}
+                disabled={isLoggingTestHit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-250 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-medium transition-colors disabled:opacity-50"
+                title="Log a test visit to verify real-time counter increment"
+              >
+                <Plus className="w-3.5 h-3.5 text-stone-500" />
+                <span>{isLoggingTestHit ? 'Logging...' : 'Record Test Visit'}</span>
+              </button>
+            )}
+            {seedSampleVisitorData && (
+              <button
+                type="button"
+                onClick={handleSeedSampleHistory}
+                disabled={isSeedingHistory}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-[#064e3b] text-xs font-medium transition-colors disabled:opacity-50"
+                title="Populate historical 30-day traffic trend simulation"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-700" />
+                <span>{isSeedingHistory ? 'Populating...' : 'Seed Sample Traffic'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {visitorNotice && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{visitorNotice}</span>
+          </div>
+        )}
+
+        {/* 4 Summary Cards: Daily, Weekly, Monthly, All-time */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Daily Card */}
+          <div
+            onClick={() => setVisitorViewMode('daily')}
+            className={`p-4 rounded-xl border cursor-pointer transition-all ${
+              visitorViewMode === 'daily'
+                ? 'border-[#064e3b] bg-emerald-50/60 ring-2 ring-[#064e3b]/10 shadow-sm'
+                : 'border-stone-200 bg-stone-50/60 hover:border-stone-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase font-semibold text-stone-500 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                Daily Visitors
+              </span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-medium px-2 py-0.5 rounded-full">
+                Today
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-3xl font-display font-bold text-stone-900 font-mono">
+                {stats.daily}
+              </span>
+              <span className="text-xs text-stone-500 font-medium">visits</span>
+            </div>
+            <div className="mt-1 text-xs text-stone-600 flex items-center gap-1.5">
+              <span className="font-semibold text-emerald-800">{stats.dailyUnique}</span>
+              <span className="text-stone-400">unique {stats.dailyUnique === 1 ? 'person' : 'people'}</span>
+            </div>
+          </div>
+
+          {/* Weekly Card */}
+          <div
+            onClick={() => setVisitorViewMode('weekly')}
+            className={`p-4 rounded-xl border cursor-pointer transition-all ${
+              visitorViewMode === 'weekly'
+                ? 'border-blue-700 bg-blue-50/60 ring-2 ring-blue-700/10 shadow-sm'
+                : 'border-stone-200 bg-stone-50/60 hover:border-stone-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase font-semibold text-stone-500 flex items-center gap-1">
+                <Activity className="w-3.5 h-3.5 text-blue-600" />
+                Weekly Visitors
+              </span>
+              <span className="text-[10px] bg-blue-100 text-blue-800 font-medium px-2 py-0.5 rounded-full">
+                This Week
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-3xl font-display font-bold text-stone-900 font-mono">
+                {stats.weekly}
+              </span>
+              <span className="text-xs text-stone-500 font-medium">visits</span>
+            </div>
+            <div className="mt-1 text-xs text-stone-600 flex items-center gap-1.5">
+              <span className="font-semibold text-blue-800">{stats.weeklyUnique}</span>
+              <span className="text-stone-400">unique {stats.weeklyUnique === 1 ? 'person' : 'people'}</span>
+            </div>
+          </div>
+
+          {/* Monthly Card */}
+          <div
+            onClick={() => setVisitorViewMode('monthly')}
+            className={`p-4 rounded-xl border cursor-pointer transition-all ${
+              visitorViewMode === 'monthly'
+                ? 'border-amber-700 bg-amber-50/60 ring-2 ring-amber-700/10 shadow-sm'
+                : 'border-stone-200 bg-stone-50/60 hover:border-stone-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase font-semibold text-stone-500 flex items-center gap-1">
+                <CalendarCheck className="w-3.5 h-3.5 text-amber-600" />
+                Monthly Visitors
+              </span>
+              <span className="text-[10px] bg-amber-100 text-amber-800 font-medium px-2 py-0.5 rounded-full">
+                This Month
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-3xl font-display font-bold text-stone-900 font-mono">
+                {stats.monthly}
+              </span>
+              <span className="text-xs text-stone-500 font-medium">visits</span>
+            </div>
+            <div className="mt-1 text-xs text-stone-600 flex items-center gap-1.5">
+              <span className="font-semibold text-amber-800">{stats.monthlyUnique}</span>
+              <span className="text-stone-400">unique {stats.monthlyUnique === 1 ? 'person' : 'people'}</span>
+            </div>
+          </div>
+
+          {/* Total Card */}
+          <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/60">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase font-semibold text-stone-500 flex items-center gap-1">
+                <Globe className="w-3.5 h-3.5 text-stone-500" />
+                All-Time Total
+              </span>
+              <span className="text-[10px] bg-stone-200 text-stone-700 font-medium px-2 py-0.5 rounded-full">
+                Overall
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="text-3xl font-display font-bold text-stone-900 font-mono">
+                {stats.total}
+              </span>
+              <span className="text-xs text-stone-500 font-medium">hits</span>
+            </div>
+            <div className="mt-1 text-xs text-stone-600 flex items-center gap-1.5">
+              <span className="font-semibold text-stone-800">{stats.totalUnique}</span>
+              <span className="text-stone-400">unique all-time</span>
+            </div>
+          </div>
+        </div>
+
+        {/* View Selection Options */}
+        <div className="border border-stone-200 rounded-xl overflow-hidden bg-white">
+          <div className="bg-stone-50 border-b border-stone-200 p-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 bg-stone-200/80 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setVisitorViewMode('daily')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  visitorViewMode === 'daily'
+                    ? 'bg-white text-stone-900 shadow-sm'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                Daily Traffic (14 Days)
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisitorViewMode('weekly')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  visitorViewMode === 'weekly'
+                    ? 'bg-white text-stone-900 shadow-sm'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                Weekly Traffic (8 Weeks)
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisitorViewMode('monthly')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  visitorViewMode === 'monthly'
+                    ? 'bg-white text-stone-900 shadow-sm'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                Monthly Traffic (6 Months)
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisitorViewMode('recent')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  visitorViewMode === 'recent'
+                    ? 'bg-white text-stone-900 shadow-sm'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                Live Hits Log
+              </button>
+            </div>
+
+            <div className="text-xs text-stone-500 font-mono">
+              {visitorViewMode === 'daily' && 'Showing daily session volume & unique visitors'}
+              {visitorViewMode === 'weekly' && 'Aggregated weekly visitor volume across rolling weeks'}
+              {visitorViewMode === 'monthly' && 'Monthly breakdown comparison'}
+              {visitorViewMode === 'recent' && `Latest ${stats.recentLogs.length} visitor event recordings`}
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            {/* Daily View */}
+            {visitorViewMode === 'daily' && (
+              <div className="space-y-3">
+                {stats.dailyBreakdown.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center">No visitor records yet. Click "Record Test Visit" or "Seed Sample Traffic" above.</p>
+                ) : (
+                  (() => {
+                    const maxVal = Math.max(1, ...stats.dailyBreakdown.map(b => b.count));
+                    return stats.dailyBreakdown.map((item, idx) => {
+                      const pct = Math.round((item.count / maxVal) * 100);
+                      const isToday = idx === 0 || item.label.includes('Today');
+                      return (
+                        <div key={item.date} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
+                          <div className="w-32 flex-shrink-0 flex items-center gap-1.5">
+                            <span className={`font-mono ${isToday ? 'font-bold text-[#064e3b]' : 'text-stone-600'}`}>
+                              {item.label}
+                            </span>
+                            {isToday && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 bg-stone-100 rounded-lg h-5 overflow-hidden flex items-center relative">
+                            <div
+                              className={`h-full rounded-lg transition-all duration-500 ${
+                                isToday ? 'bg-[#064e3b]' : 'bg-emerald-700/80'
+                              }`}
+                              style={{ width: `${Math.max(item.count > 0 ? 4 : 0, pct)}%` }}
+                            ></div>
+                            <span className="absolute left-2 text-[10px] font-mono font-medium text-stone-700">
+                              {item.count > 0 ? `${item.count} hits` : '0 hits'}
+                            </span>
+                          </div>
+
+                          <div className="w-36 flex-shrink-0 flex items-center justify-end gap-3 text-stone-500 text-[11px] font-mono">
+                            <span className="text-stone-900 font-semibold">{item.count} total</span>
+                            <span className="text-emerald-800 font-medium">({item.unique} unique)</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
+                )}
+              </div>
+            )}
+
+            {/* Weekly View */}
+            {visitorViewMode === 'weekly' && (
+              <div className="space-y-3">
+                {stats.weeklyBreakdown.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center">No visitor records yet.</p>
+                ) : (
+                  (() => {
+                    const maxVal = Math.max(1, ...stats.weeklyBreakdown.map(b => b.count));
+                    return stats.weeklyBreakdown.map((item, idx) => {
+                      const pct = Math.round((item.count / maxVal) * 100);
+                      const isThisWeek = idx === 0 || item.label.includes('This Week');
+                      return (
+                        <div key={item.week} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
+                          <div className="w-44 flex-shrink-0 flex items-center gap-1.5">
+                            <span className={`font-mono ${isThisWeek ? 'font-bold text-blue-900' : 'text-stone-600'}`}>
+                              {item.label}
+                            </span>
+                            {isThisWeek && (
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 bg-stone-100 rounded-lg h-5 overflow-hidden flex items-center relative">
+                            <div
+                              className={`h-full rounded-lg transition-all duration-500 ${
+                                isThisWeek ? 'bg-blue-700' : 'bg-blue-600/75'
+                              }`}
+                              style={{ width: `${Math.max(item.count > 0 ? 4 : 0, pct)}%` }}
+                            ></div>
+                            <span className="absolute left-2 text-[10px] font-mono font-medium text-stone-700">
+                              {item.count > 0 ? `${item.count} visits` : '0 visits'}
+                            </span>
+                          </div>
+
+                          <div className="w-36 flex-shrink-0 flex items-center justify-end gap-3 text-stone-500 text-[11px] font-mono">
+                            <span className="text-stone-900 font-semibold">{item.count} total</span>
+                            <span className="text-blue-800 font-medium">({item.unique} unique)</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
+                )}
+              </div>
+            )}
+
+            {/* Monthly View */}
+            {visitorViewMode === 'monthly' && (
+              <div className="space-y-3">
+                {stats.monthlyBreakdown.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center">No visitor records yet.</p>
+                ) : (
+                  (() => {
+                    const maxVal = Math.max(1, ...stats.monthlyBreakdown.map(b => b.count));
+                    return stats.monthlyBreakdown.map((item, idx) => {
+                      const pct = Math.round((item.count / maxVal) * 100);
+                      const isThisMonth = idx === 0 || item.label.includes('This Month');
+                      return (
+                        <div key={item.month} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
+                          <div className="w-48 flex-shrink-0 flex items-center gap-1.5">
+                            <span className={`font-mono ${isThisMonth ? 'font-bold text-amber-900' : 'text-stone-600'}`}>
+                              {item.label}
+                            </span>
+                            {isThisMonth && (
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 bg-stone-100 rounded-lg h-5 overflow-hidden flex items-center relative">
+                            <div
+                              className={`h-full rounded-lg transition-all duration-500 ${
+                                isThisMonth ? 'bg-amber-600' : 'bg-amber-600/75'
+                              }`}
+                              style={{ width: `${Math.max(item.count > 0 ? 4 : 0, pct)}%` }}
+                            ></div>
+                            <span className="absolute left-2 text-[10px] font-mono font-medium text-stone-700">
+                              {item.count > 0 ? `${item.count} visits` : '0 visits'}
+                            </span>
+                          </div>
+
+                          <div className="w-36 flex-shrink-0 flex items-center justify-end gap-3 text-stone-500 text-[11px] font-mono">
+                            <span className="text-stone-900 font-semibold">{item.count} total</span>
+                            <span className="text-amber-800 font-medium">({item.unique} unique)</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
+                )}
+              </div>
+            )}
+
+            {/* Recent Live Hit Log */}
+            {visitorViewMode === 'recent' && (
+              <div className="overflow-x-auto">
+                {stats.recentLogs.length === 0 ? (
+                  <p className="text-xs text-stone-400 py-6 text-center">No visitor records logged yet.</p>
+                ) : (
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-stone-200 text-stone-400 font-mono text-[10px] uppercase">
+                        <th className="py-2 px-3">Timestamp</th>
+                        <th className="py-2 px-3">Device / Browser</th>
+                        <th className="py-2 px-3">Page Visited</th>
+                        <th className="py-2 px-3">Visitor Session Key</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 font-sans">
+                      {stats.recentLogs.map((log) => {
+                        const dateFormatted = new Date(log.timestamp).toLocaleString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit'
+                        });
+                        return (
+                          <tr key={log.id} className="hover:bg-stone-50 transition-colors">
+                            <td className="py-2.5 px-3 text-stone-700 font-mono text-[11px] whitespace-nowrap">
+                              {dateFormatted}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5">
+                                {log.device === 'Mobile' ? (
+                                  <Smartphone className="w-3.5 h-3.5 text-stone-400" />
+                                ) : log.device === 'Tablet' ? (
+                                  <Smartphone className="w-3.5 h-3.5 text-stone-400" />
+                                ) : (
+                                  <Monitor className="w-3.5 h-3.5 text-stone-400" />
+                                )}
+                                <span className="font-medium text-stone-800">{log.device || 'Desktop'}</span>
+                                <span className="text-stone-400 text-[10px]">({log.browser || 'Browser'})</span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className="bg-stone-100 text-stone-700 px-2 py-0.5 rounded text-[11px] font-mono">
+                                /{log.page || 'home'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-stone-400 font-mono text-[10px]">
+                              {log.visitorId ? log.visitorId.slice(0, 14) + '...' : 'unknown'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Campaign & Season Management Panel */}
