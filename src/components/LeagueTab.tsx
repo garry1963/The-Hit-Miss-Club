@@ -125,7 +125,7 @@ export default function LeagueTab({
   // Entry input fields
   const [entryPlayerName, setEntryPlayerName] = useState('');
   const [entryHandicap, setEntryHandicap] = useState(0);
-  const [entryRounds, setEntryRounds] = useState(0);
+  const [entryRounds, setEntryRounds] = useState<number | string>(0);
   const [entryAvgGross, setEntryAvgGross] = useState(0);
   const [entryAvgNet, setEntryAvgNet] = useState(0);
   const [entryTotalPoints, setEntryTotalPoints] = useState(0);
@@ -625,26 +625,16 @@ export default function LeagueTab({
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1">
-              <label className="font-semibold text-stone-600 flex items-center justify-between text-xs">
-                <span>Rounds</span>
-                <span className="font-mono text-emerald-800 font-bold">{entryRounds}R</span>
-              </label>
-              <div className="grid grid-cols-4 gap-1 p-0.5 bg-stone-100 rounded border border-stone-250">
-                {[1, 2, 3, 4].map(num => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => setEntryRounds(num)}
-                    className={`py-1 text-xs font-bold font-mono rounded transition cursor-pointer text-center ${
-                      entryRounds === num
-                        ? 'bg-emerald-850 text-white shadow-xs'
-                        : 'bg-white text-stone-700 hover:bg-stone-50'
-                    }`}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
+              <label className="font-semibold text-stone-600">Rounds</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={entryRounds}
+                onChange={e => setEntryRounds(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="0"
+                className="bg-white border rounded px-3 py-2 text-stone-900 focus:outline-none focus:ring-1 focus:ring-emerald-800"
+              />
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1">
