@@ -276,16 +276,29 @@ export default function HomeTab({
      spotlightEvent.title.includes('(Q)'))
   );
 
-  const getScoreVsPar = (score: number) => {
+  const getScoreVsPar = (score: number, resItem?: TournamentResult) => {
     if (score === undefined || score === null) return 0;
     if (score > 30 || score < -30) {
-      return score - coursePar;
+      let activeRounds = 1;
+      const trackedRounds = spotlightEvent?.roundsCount || 1;
+      if (resItem) {
+        const count = [
+          resItem.round1Score,
+          trackedRounds >= 2 ? resItem.round2Score : 0,
+          trackedRounds >= 3 ? resItem.round3Score : 0,
+          trackedRounds >= 4 ? resItem.round4Score : 0
+        ].filter(v => v !== undefined && v !== null && Number(v) !== 0).length;
+        if (count > 0) activeRounds = count;
+      } else if (trackedRounds > 1 && score > coursePar * 1.5) {
+        activeRounds = Math.min(Math.max(Math.round(score / coursePar), 1), trackedRounds);
+      }
+      return score - (coursePar * activeRounds);
     }
     return score;
   };
 
-  const formatScoreVsPar = (score: number) => {
-    const vsPar = getScoreVsPar(score);
+  const formatScoreVsPar = (score: number, resItem?: TournamentResult) => {
+    const vsPar = getScoreVsPar(score, resItem);
     if (vsPar > 0) return `+${vsPar}`;
     if (vsPar < 0) return `${vsPar}`;
     return 'E';
@@ -310,10 +323,10 @@ export default function HomeTab({
         const hasNet = formats.includes('net');
         const hasPoints = formats.includes('points');
 
-        const grossA = getScoreVsPar(a.grossScore);
-        const grossB = getScoreVsPar(b.grossScore);
-        const netA = getScoreVsPar(a.netScore);
-        const netB = getScoreVsPar(b.netScore);
+        const grossA = getScoreVsPar(a.grossScore, a);
+        const grossB = getScoreVsPar(b.grossScore, b);
+        const netA = getScoreVsPar(a.netScore, a);
+        const netB = getScoreVsPar(b.netScore, b);
         const ptsA = a.points || 0;
         const ptsB = b.points || 0;
 
@@ -349,10 +362,10 @@ export default function HomeTab({
         const hasNet = formats.includes('net');
         const hasPoints = formats.includes('points');
 
-        const grossA = getScoreVsPar(a.grossScore);
-        const grossB = getScoreVsPar(b.grossScore);
-        const netA = getScoreVsPar(a.netScore);
-        const netB = getScoreVsPar(b.netScore);
+        const grossA = getScoreVsPar(a.grossScore, a);
+        const grossB = getScoreVsPar(b.grossScore, b);
+        const netA = getScoreVsPar(a.netScore, a);
+        const netB = getScoreVsPar(b.netScore, b);
         const ptsA = a.points || 0;
         const ptsB = b.points || 0;
 
@@ -394,10 +407,10 @@ export default function HomeTab({
         const hasNet = formats.includes('net');
         const hasPoints = formats.includes('points');
 
-        const grossA = getScoreVsPar(a.grossScore);
-        const grossB = getScoreVsPar(b.grossScore);
-        const netA = getScoreVsPar(a.netScore);
-        const netB = getScoreVsPar(b.netScore);
+        const grossA = getScoreVsPar(a.grossScore, a);
+        const grossB = getScoreVsPar(b.grossScore, b);
+        const netA = getScoreVsPar(a.netScore, a);
+        const netB = getScoreVsPar(b.netScore, b);
         const ptsA = a.points || 0;
         const ptsB = b.points || 0;
 
@@ -423,12 +436,12 @@ export default function HomeTab({
   const hasPoints = spotlightFormats.includes('points');
 
   let scoreLabel = 'Net Score';
-  let scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.netScore);
+  let scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.netScore, r);
   let scoreColor = 'text-emerald-400';
 
   if (hasGross && !hasNet && !hasPoints) {
     scoreLabel = 'Gross Score';
-    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.grossScore);
+    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.grossScore, r);
     scoreColor = 'text-indigo-300';
   } else if (hasPoints && !hasNet && !hasGross) {
     scoreLabel = 'Stableford Points';
@@ -436,11 +449,11 @@ export default function HomeTab({
     scoreColor = 'text-amber-300';
   } else if (hasGross) {
     scoreLabel = 'Gross Score';
-    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.grossScore);
+    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.grossScore, r);
     scoreColor = 'text-indigo-300';
   } else if (hasNet) {
     scoreLabel = 'Net Score';
-    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.netScore);
+    scoreValueFn = (r: TournamentResult) => formatScoreVsPar(r.netScore, r);
     scoreColor = 'text-emerald-400';
   }
 

@@ -116,16 +116,34 @@ export default function LiveLeaderboardModal({
 
   const coursePar = course?.par || 72;
 
-  const getScoreVsPar = (score: number) => {
+  const getScoreVsPar = (
+    score: number,
+    rowOrResult?: { round1Score?: number; round2Score?: number; round3Score?: number; round4Score?: number }
+  ) => {
     if (score === undefined || score === null) return 0;
     if (score > 30 || score < -30) {
-      return score - coursePar;
+      let activeRounds = 1;
+      if (rowOrResult) {
+        const count = [
+          rowOrResult.round1Score,
+          trackedRounds >= 2 ? rowOrResult.round2Score : 0,
+          trackedRounds >= 3 ? rowOrResult.round3Score : 0,
+          trackedRounds >= 4 ? rowOrResult.round4Score : 0
+        ].filter(v => v !== undefined && v !== null && Number(v) !== 0).length;
+        if (count > 0) activeRounds = count;
+      } else if (trackedRounds > 1 && score > coursePar * 1.5) {
+        activeRounds = Math.min(Math.max(Math.round(score / coursePar), 1), trackedRounds);
+      }
+      return score - (coursePar * activeRounds);
     }
     return score;
   };
 
-  const formatScoreVsPar = (score: number) => {
-    const vsPar = getScoreVsPar(score);
+  const formatScoreVsPar = (
+    score: number,
+    rowOrResult?: { round1Score?: number; round2Score?: number; round3Score?: number; round4Score?: number }
+  ) => {
+    const vsPar = getScoreVsPar(score, rowOrResult);
     if (vsPar > 0) return `+${vsPar}`;
     if (vsPar < 0) return `${vsPar}`;
     return 'E';
@@ -149,10 +167,10 @@ export default function LiveLeaderboardModal({
       const hasNet = scoreFormats.includes('net');
       const hasPoints = scoreFormats.includes('points');
 
-      const grossA = getScoreVsPar(a.grossScore);
-      const grossB = getScoreVsPar(b.grossScore);
-      const netA = getScoreVsPar(a.netScore);
-      const netB = getScoreVsPar(b.netScore);
+      const grossA = getScoreVsPar(a.grossScore, a);
+      const grossB = getScoreVsPar(b.grossScore, b);
+      const netA = getScoreVsPar(a.netScore, a);
+      const netB = getScoreVsPar(b.netScore, b);
       const ptsA = a.points || 0;
       const ptsB = b.points || 0;
 
@@ -168,18 +186,27 @@ export default function LiveLeaderboardModal({
         return netA - netB || grossA - grossB;
       }
     });
-  }, [results, targetEventId, event.id, isQualifier, scoreFormats, event.format, coursePar]);
+  }, [results, targetEventId, event.id, isQualifier, scoreFormats, event.format, coursePar, trackedRounds]);
 
   // Sync draftRows from currentResults whenever opening or switching entry type
   useEffect(() => {
     if (currentResults.length > 0) {
       setDraftRows(currentResults.map(r => {
         const mem = members.find(m => m.id === r.playerId);
+        const r1 = Number(r.round1Score) || 0;
+        const r2 = trackedRounds >= 2 ? (Number(r.round2Score) || 0) : 0;
+        const r3 = trackedRounds >= 3 ? (Number(r.round3Score) || 0) : 0;
+        const r4 = trackedRounds >= 4 ? (Number(r.round4Score) || 0) : 0;
+        const sumRounds = r1 + r2 + r3 + r4;
+        const hcp = r.handicap !== undefined ? Number(r.handicap) : (mem ? Number(mem.handicap) : 18);
+        const gross = (sumRounds !== 0) ? sumRounds : (Number(r.grossScore) || 0);
+        const net = r.netScore !== undefined ? Number(r.netScore) : (gross !== 0 ? gross - hcp : 0);
+
         return {
           playerId: r.playerId,
-          grossScore: r.grossScore || 0,
-          handicap: r.handicap !== undefined ? r.handicap : (mem ? mem.handicap : 18),
-          netScore: r.netScore !== undefined ? r.netScore : 0,
+          grossScore: gross,
+          handicap: hcp,
+          netScore: net,
           points: r.points || 0,
           position: r.position || 1,
           round1Score: r.round1Score || 0,
@@ -193,7 +220,7 @@ export default function LiveLeaderboardModal({
       setDraftRows([]);
     }
     setSaveSuccessMsg('');
-  }, [currentResults, members, targetEventId]);
+  }, [currentResults, members, targetEventId, trackedRounds]);
 
   if (!isOpen) return null;
 
@@ -244,7 +271,7 @@ export default function LiveLeaderboardModal({
       playerId: chosenMember.id,
       grossScore: 0,
       handicap: hcp,
-      netScore: -hcp,
+      netScore: 0,
       points: 0,
       position: draftRows.length + 1,
       round1Score: 0,
@@ -271,7 +298,7 @@ export default function LiveLeaderboardModal({
       playerId: m.id,
       grossScore: 0,
       handicap: m.handicap ?? 18,
-      netScore: -(m.handicap ?? 18),
+      netScore: 0,
       points: 0,
       position: startPos + idx,
       round1Score: 0,
@@ -309,33 +336,23 @@ export default function LiveLeaderboardModal({
         (target as any)[field] = Number(value);
       }
 
-      // Recalculate Gross Score from active tracked rounds relative to par per round
+      // Recalculate Gross Score as the exact total of the entered round scores across active tracked rounds
       const r1 = Number(target.round1Score) || 0;
       const r2 = trackedRounds >= 2 ? (Number(target.round2Score) || 0) : 0;
       const r3 = trackedRounds >= 3 ? (Number(target.round3Score) || 0) : 0;
       const r4 = trackedRounds >= 4 ? (Number(target.round4Score) || 0) : 0;
-      
-      const coursePar = course?.par || 72;
 
-      const getRoundVsPar = (val: number) => {
-        if (val === 0) return 0;
-        if (val > 20 || val < -20) return val - coursePar;
-        return val;
-      };
+      // Exact sum of the entered round scores
+      const totalOfEnteredRounds = r1 + r2 + r3 + r4;
+      target.grossScore = totalOfEnteredRounds;
 
-      const g1 = getRoundVsPar(r1);
-      const g2 = getRoundVsPar(r2);
-      const g3 = getRoundVsPar(r3);
-      const g4 = getRoundVsPar(r4);
-
-      const calculatedGrossVsPar = g1 + g2 + g3 + g4;
-
+      // Auto-calculate Net Score: gross - handicap adjustment
+      // If no round scores entered at all, net score is 0
       if (r1 !== 0 || r2 !== 0 || r3 !== 0 || r4 !== 0) {
-        target.grossScore = calculatedGrossVsPar;
+        target.netScore = target.grossScore - Number(target.handicap || 0);
       } else {
-        target.grossScore = 0;
+        target.netScore = 0;
       }
-      target.netScore = target.grossScore - Number(target.handicap || 0);
 
       copy[index] = target;
       return copy;
@@ -349,10 +366,10 @@ export default function LiveLeaderboardModal({
       const hasPoints = scoreFormats.includes('points');
 
       const sorted = [...prev].sort((a, b) => {
-        const grossA = getScoreVsPar(a.grossScore);
-        const grossB = getScoreVsPar(b.grossScore);
-        const netA = getScoreVsPar(a.netScore);
-        const netB = getScoreVsPar(b.netScore);
+        const grossA = getScoreVsPar(a.grossScore, a);
+        const grossB = getScoreVsPar(b.grossScore, b);
+        const netA = getScoreVsPar(a.netScore, a);
+        const netB = getScoreVsPar(b.netScore, b);
         const ptsA = a.points || 0;
         const ptsB = b.points || 0;
 
@@ -824,7 +841,7 @@ export default function LiveLeaderboardModal({
             {leaderMember && (
               <span className="text-amber-300 flex items-center gap-1 font-bold">
                 <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                <span>Leader: {leaderMember.name} ({scoreFormats.includes('net') ? formatScoreVsPar(leaderResult.netScore) : formatScoreVsPar(leaderResult.grossScore)})</span>
+                <span>Leader: {leaderMember.name} ({scoreFormats.includes('net') ? formatScoreVsPar(leaderResult.netScore, leaderResult) : formatScoreVsPar(leaderResult.grossScore, leaderResult)})</span>
               </span>
             )}
             <span>Field: {currentResults.length} Players</span>
@@ -851,7 +868,7 @@ export default function LiveLeaderboardModal({
                     Live Scorecard Editor
                   </h3>
                   <p className="text-xs text-stone-400">
-                    Tracking {trackedRounds} {trackedRounds === 1 ? 'Round' : 'Rounds'}. Displaying {scoreFormats.map(s => s === 'points' ? 'Stableford Points' : s.toUpperCase()).join(' & ')}. Gross score auto-calculates from active rounds.
+                    Tracking {trackedRounds} {trackedRounds === 1 ? 'Round' : 'Rounds'}. Displaying {scoreFormats.map(s => s === 'points' ? 'Stableford Points' : s.toUpperCase()).join(' & ')}. Gross score auto-calculates total of entered round scores.
                   </p>
                 </div>
 
@@ -940,11 +957,11 @@ export default function LiveLeaderboardModal({
                         
                         {/* Dynamic Standings Display Format Columns */}
                         {scoreFormats.includes('gross') && (
-                          <th className="p-3 w-20 text-center text-indigo-300">Gross</th>
+                          <th className="p-3 w-24 text-center text-indigo-300" title="Gross score total of entered rounds">Gross Total</th>
                         )}
                         <th className="p-3 w-18 text-center">HCP</th>
                         {scoreFormats.includes('net') && (
-                          <th className="p-3 w-20 text-center text-emerald-400">Net</th>
+                          <th className="p-3 w-24 text-center text-emerald-400" title="Net score (Gross - Handicap)">Net Total</th>
                         )}
                         {scoreFormats.includes('points') && (
                           <th className="p-3 w-20 text-center text-amber-300">Points</th>
@@ -1041,7 +1058,20 @@ export default function LiveLeaderboardModal({
                           {/* Gross Score */}
                           {scoreFormats.includes('gross') && (
                             <td className="p-2 text-center font-mono font-bold text-indigo-300">
-                              {formatScoreVsPar(row.grossScore)}
+                              {(() => {
+                                if (row.grossScore === 0) return <span className="text-stone-500 font-normal">-</span>;
+                                const vsPar = getScoreVsPar(row.grossScore, row);
+                                const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
+                                if (row.grossScore > 30 || row.grossScore < -30) {
+                                  return (
+                                    <span title={`Gross Total: ${row.grossScore} (${vsParStr})`}>
+                                      <span className="text-sm font-extrabold text-indigo-200">{row.grossScore}</span>
+                                      <span className="text-[10px] ml-1 opacity-75">({vsParStr})</span>
+                                    </span>
+                                  );
+                                }
+                                return <span className="text-sm font-extrabold text-indigo-200">{vsParStr}</span>;
+                              })()}
                             </td>
                           )}
 
@@ -1058,7 +1088,20 @@ export default function LiveLeaderboardModal({
                           {/* Net Score */}
                           {scoreFormats.includes('net') && (
                             <td className="p-2 text-center font-mono font-extrabold text-emerald-400">
-                              {formatScoreVsPar(row.netScore)}
+                              {(() => {
+                                if (row.grossScore === 0 && row.netScore === 0) return <span className="text-stone-500 font-normal">-</span>;
+                                const vsPar = getScoreVsPar(row.netScore, row);
+                                const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
+                                if (row.netScore > 30 || row.netScore < -30) {
+                                  return (
+                                    <span title={`Net Total: ${row.netScore} (${vsParStr})`}>
+                                      <span className="text-sm font-extrabold text-emerald-300">{row.netScore}</span>
+                                      <span className="text-[10px] ml-1 opacity-75">({vsParStr})</span>
+                                    </span>
+                                  );
+                                }
+                                return <span className="text-sm font-extrabold text-emerald-300">{vsParStr}</span>;
+                              })()}
                             </td>
                           )}
 
@@ -1274,7 +1317,20 @@ export default function LiveLeaderboardModal({
                             {/* Gross Score */}
                             {scoreFormats.includes('gross') && (
                               <td className="p-3 text-center font-mono font-bold text-indigo-300">
-                                {formatScoreVsPar(r.grossScore)}
+                                {(() => {
+                                  if (!r.grossScore && r.grossScore !== 0) return <span className="text-stone-500 font-normal">-</span>;
+                                  const vsPar = getScoreVsPar(r.grossScore, r);
+                                  const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
+                                  if (r.grossScore > 30 || r.grossScore < -30) {
+                                    return (
+                                      <span title={`Gross Total: ${r.grossScore} strokes (${vsParStr})`}>
+                                        <span className="text-sm font-extrabold text-indigo-200">{vsParStr}</span>
+                                        <span className="text-[10px] text-indigo-400/80 ml-1 font-normal">({r.grossScore})</span>
+                                      </span>
+                                    );
+                                  }
+                                  return <span className="text-sm font-extrabold text-indigo-200">{vsParStr}</span>;
+                                })()}
                               </td>
                             )}
 
@@ -1286,7 +1342,20 @@ export default function LiveLeaderboardModal({
                             {/* Net Score */}
                             {scoreFormats.includes('net') && (
                               <td className="p-3 text-center font-mono font-extrabold text-sm text-emerald-400">
-                                {formatScoreVsPar(r.netScore)}
+                                {(() => {
+                                  if (r.grossScore === 0 && r.netScore === 0) return <span className="text-stone-500 font-normal">-</span>;
+                                  const vsPar = getScoreVsPar(r.netScore, r);
+                                  const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
+                                  if (r.netScore > 30 || r.netScore < -30) {
+                                    return (
+                                      <span title={`Net Total: ${r.netScore} strokes (${vsParStr})`}>
+                                        <span className="text-sm font-extrabold text-emerald-300">{vsParStr}</span>
+                                        <span className="text-[10px] text-emerald-400/80 ml-1 font-normal">({r.netScore})</span>
+                                      </span>
+                                    );
+                                  }
+                                  return <span className="text-sm font-extrabold text-emerald-300">{vsParStr}</span>;
+                                })()}
                               </td>
                             )}
 
