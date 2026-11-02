@@ -167,7 +167,7 @@ export default function HomeTab({
   updateEvent
 }: HomeTabProps) {
   const [liveLeaderboardModalOpen, setLiveLeaderboardModalOpen] = React.useState(false);
-  const [liveModalDivision, setLiveModalDivision] = React.useState<'main' | 'alternate'>('main');
+  const [liveModalDivision, setLiveModalDivision] = React.useState<'main' | 'alternate' | 'major'>('main');
 
   // Get today's local date string in YYYY-MM-DD format
   const getTodayString = () => {
@@ -371,6 +371,52 @@ export default function HomeTab({
       .slice(0, 3);
   }, [isLiveSpotlight, spotlightEvent, results, coursePar]);
 
+  // Top live leaderboard entries for spotlight event (Major Standings)
+  const spotlightMajorLiveResults = React.useMemo(() => {
+    if (!isLiveSpotlight || !spotlightEvent) return [];
+    if (spotlightEvent.classification !== 'Major') return [];
+
+    let res = results.filter(r => r.eventId === `${spotlightEvent.id}-major`);
+    if (res.length === 0) {
+      res = results.filter(r => r.eventId === spotlightEvent.id);
+    }
+    if (res.length === 0) {
+      res = results.filter(r => r.eventId === `${spotlightEvent.id}-main`);
+    }
+
+    const formats = spotlightEvent.scoreDisplayFormats || ['net'];
+    return [...res]
+      .sort((a, b) => {
+        if (a.position !== b.position && a.position > 0 && b.position > 0) {
+          return a.position - b.position;
+        }
+        const hasGross = formats.includes('gross');
+        const hasNet = formats.includes('net');
+        const hasPoints = formats.includes('points');
+
+        const grossA = getScoreVsPar(a.grossScore);
+        const grossB = getScoreVsPar(b.grossScore);
+        const netA = getScoreVsPar(a.netScore);
+        const netB = getScoreVsPar(b.netScore);
+        const ptsA = a.points || 0;
+        const ptsB = b.points || 0;
+
+        if (hasPoints && (spotlightEvent.format === 'Stableford' || (!hasNet && !hasGross))) {
+          return ptsB - ptsA || grossA - grossB;
+        } else if (hasGross && !hasNet && !hasPoints) {
+          return grossA - grossB || netA - netB;
+        } else if (hasNet && !hasGross && !hasPoints) {
+          return netA - netB || grossA - grossB;
+        } else if (hasGross && hasNet) {
+          return grossA - grossB || netA - netB;
+        } else {
+          return netA - netB || grossA - grossB;
+        }
+      })
+      .slice(0, 5);
+  }, [isLiveSpotlight, spotlightEvent, results, coursePar]);
+
+  const isMajor = Boolean(spotlightEvent && spotlightEvent.classification === 'Major');
   const spotlightFormats = spotlightEvent?.scoreDisplayFormats || ['net'];
   const hasGross = spotlightFormats.includes('gross');
   const hasNet = spotlightFormats.includes('net');
@@ -894,6 +940,56 @@ export default function HomeTab({
                           )}
                         </div>
                       </div>
+                    ) : isMajor ? (
+                      <div className="space-y-2 py-1">
+                        {/* Major Standings Board */}
+                        <div className="bg-stone-900/90 p-2.5 rounded-xl border border-amber-500/50 space-y-1.5 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-mono font-bold text-amber-300 uppercase flex items-center gap-1.5">
+                              🏆 Major Standings
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLiveModalDivision('major');
+                                setLiveLeaderboardModalOpen(true);
+                              }}
+                              className="text-[10px] text-amber-300 hover:text-white underline cursor-pointer font-medium"
+                            >
+                              Open Major Board →
+                            </button>
+                          </div>
+                          {spotlightMajorLiveResults.length > 0 ? (
+                            <div className="space-y-1">
+                              {spotlightMajorLiveResults.map((r, idx) => {
+                                const mem = members.find(m => m.id === r.playerId);
+                                return (
+                                  <div key={r.id || idx} className="flex items-center justify-between bg-stone-950 px-2.5 py-1.5 rounded-lg border border-amber-500/20 text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-4 h-4 rounded-full flex items-center justify-center font-mono font-bold text-[9px] ${
+                                        r.position === 1 ? 'bg-amber-400 text-stone-950' : r.position === 2 ? 'bg-stone-300 text-stone-900' : r.position === 3 ? 'bg-amber-700 text-white' : 'bg-stone-800 text-stone-300'
+                                      }`}>
+                                        {r.position}
+                                      </span>
+                                      <span className="font-semibold text-stone-200">{mem?.name || 'Member'}</span>
+                                      {r.thru && (
+                                        <span className="text-[9px] font-mono text-amber-300 bg-amber-950/80 px-1 py-0.2 rounded border border-amber-800/80">
+                                          {r.thru === 'F' ? 'F' : `Thru ${r.thru}`}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className={`font-mono font-bold ${scoreColor}`}>
+                                      {scoreValueFn(r)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-stone-400 text-[11px] italic py-1">No major tournament live scores posted yet.</p>
+                          )}
+                        </div>
+                      </div>
                     ) : (
                       <div className="space-y-3">
                         {/* Main Division Standings Board */}
@@ -991,29 +1087,57 @@ export default function HomeTab({
                     )}
 
                     <div className="pt-1 flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLiveModalDivision('main');
-                          setLiveLeaderboardModalOpen(true);
-                        }}
-                        className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1 transition cursor-pointer shadow-sm"
-                      >
-                        <Trophy className="w-3.5 h-3.5 text-amber-300" />
-                        <span>🏆 Main Live Board</span>
-                      </button>
+                      {isMajor ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLiveModalDivision('major');
+                            setLiveLeaderboardModalOpen(true);
+                          }}
+                          className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3.5 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm font-mono"
+                        >
+                          <Trophy className="w-3.5 h-3.5 text-stone-950" />
+                          <span>🏆 Major Board</span>
+                        </button>
+                      ) : isQualifier ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLiveModalDivision('main');
+                            setLiveLeaderboardModalOpen(true);
+                          }}
+                          className="bg-red-600 hover:bg-red-500 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm font-mono"
+                        >
+                          <Trophy className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Live Leaderboard</span>
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLiveModalDivision('main');
+                              setLiveLeaderboardModalOpen(true);
+                            }}
+                            className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1 transition cursor-pointer shadow-sm"
+                          >
+                            <Trophy className="w-3.5 h-3.5 text-amber-300" />
+                            <span>🏆 Main Live Board</span>
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLiveModalDivision('alternate');
-                          setLiveLeaderboardModalOpen(true);
-                        }}
-                        className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1 transition cursor-pointer shadow-sm"
-                      >
-                        <Trophy className="w-3.5 h-3.5 text-stone-950" />
-                        <span>⛳ Alternate Live Board</span>
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLiveModalDivision('alternate');
+                              setLiveLeaderboardModalOpen(true);
+                            }}
+                            className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-3 py-1.5 rounded-lg text-xs uppercase tracking-wider flex items-center gap-1 transition cursor-pointer shadow-sm"
+                          >
+                            <Trophy className="w-3.5 h-3.5 text-stone-950" />
+                            <span>⛳ Alternate Live Board</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ) : (

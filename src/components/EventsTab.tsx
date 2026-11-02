@@ -50,7 +50,7 @@ export default function EventsTab({
   const [filterFormat, setFilterFormat] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Live' | 'Upcoming' | 'Completed'>('All');
   const [liveLeaderboardEvent, setLiveLeaderboardEvent] = useState<Event | null>(null);
-  const [liveLeaderboardDivision, setLiveLeaderboardDivision] = useState<'main' | 'alternate'>('main');
+  const [liveLeaderboardDivision, setLiveLeaderboardDivision] = useState<'main' | 'alternate' | 'major'>('main');
   
   // Form states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -178,6 +178,7 @@ export default function EventsTab({
 
   const handleOpenLiveLeaderboardFromForm = async () => {
     if (editingEvent) {
+      setLiveLeaderboardDivision(editingEvent.classification === 'Major' ? 'major' : 'main');
       setLiveLeaderboardEvent(editingEvent);
     } else {
       if (!title.trim()) {
@@ -205,6 +206,7 @@ export default function EventsTab({
         const created = await addEvent(payload);
         if (created) {
           setEditingEvent(created);
+          setLiveLeaderboardDivision(classification === 'Major' ? 'major' : 'main');
           setLiveLeaderboardEvent(created);
           if (isSpotlightForm && updateSiteContent) {
             updateSiteContent('spotlight_event_id', created.id);
@@ -541,7 +543,12 @@ export default function EventsTab({
             </div>
 
             <div className="md:col-span-3 flex flex-col gap-1">
-              <label className="font-semibold text-stone-700">Tournament Classification *</label>
+              <label className="font-semibold text-stone-700 flex items-center justify-between">
+                <span>Tournament Classification *</span>
+                {classification === 'Major' && (
+                  <span className="text-[10px] font-mono text-amber-600 font-bold">🏆 MAJOR</span>
+                )}
+              </label>
               <select
                 value={classification}
                 onChange={e => setClassification(e.target.value as any)}
@@ -552,6 +559,11 @@ export default function EventsTab({
                 <option value="Alternate">Alternate</option>
                 <option value="Qualifier">Qualifier</option>
               </select>
+              {classification === 'Major' && (
+                <span className="text-[10px] text-amber-700 font-mono font-medium">
+                  🏆 Major tournament uses unified Major Board & Major Standings.
+                </span>
+              )}
             </div>
 
             <div className="md:col-span-3 flex flex-col gap-1">
@@ -995,6 +1007,7 @@ export default function EventsTab({
             const isExplicitlyPinned = configuredSpotlightId === ev.id;
             const isLive = isEventLive(ev);
             const isQualifier = ev.classification === 'Qualifier' || ev.title.includes('(Q)') || ev.title.includes('Qualifier');
+            const isMajor = ev.classification === 'Major';
             
             return (
               <div
@@ -1112,6 +1125,21 @@ export default function EventsTab({
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
                             <Trophy className="w-3 h-3 text-red-600" />
                             <span>{isAdmin ? 'Live Leaderboard' : 'Live Board'}</span>
+                          </button>
+                        ) : isMajor ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLiveLeaderboardDivision('major');
+                              setLiveLeaderboardEvent(ev);
+                            }}
+                            className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded font-bold text-[10px] uppercase flex items-center gap-1 shadow-xs transition cursor-pointer"
+                            title="Major Tournament Live Leaderboard"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                            <Trophy className="w-3 h-3 text-amber-600" />
+                            <span>🏆 Major Board</span>
                           </button>
                         ) : (
                           <>
@@ -1318,13 +1346,14 @@ export default function EventsTab({
                 {selectedEvent.status === 'Live' || isEventLive(selectedEvent) ? (
                   <button
                     onClick={() => {
+                      setLiveLeaderboardDivision(selectedEvent.classification === 'Major' ? 'major' : 'main');
                       setLiveLeaderboardEvent(selectedEvent);
                     }}
                     className="w-full text-center bg-red-600 hover:bg-red-500 border border-red-500 text-white hover:scale-102 transition-all py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
                   >
                     <span className="w-2 h-2 rounded-full bg-white inline-block animate-ping"></span>
                     <Trophy className="w-3.5 h-3.5 text-amber-300" />
-                    <span>{isAdmin ? 'Manage Live Leaderboard' : 'View Live Leaderboard'}</span>
+                    <span>{selectedEvent.classification === 'Major' ? (isAdmin ? 'Manage Major Board' : 'View Major Board') : (isAdmin ? 'Manage Live Leaderboard' : 'View Live Leaderboard')}</span>
                   </button>
                 ) : selectedEvent.status === 'Completed' ? (
                   <button

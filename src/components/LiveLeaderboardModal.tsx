@@ -35,7 +35,7 @@ interface LiveLeaderboardModalProps {
   isAdmin: boolean;
   onSaveResults: (eventId: string, newResults: Omit<TournamentResult, 'id' | 'eventId'>[]) => Promise<void> | void;
   onUpdateEvent?: (updated: Event) => Promise<void> | void;
-  defaultDivision?: 'main' | 'alternate';
+  defaultDivision?: 'main' | 'alternate' | 'major';
 }
 
 interface LeaderboardDraftRow {
@@ -65,7 +65,7 @@ export default function LiveLeaderboardModal({
   defaultDivision
 }: LiveLeaderboardModalProps) {
   const isQualifier = event.classification === 'Qualifier' || event.title.includes('(Q)') || event.title.includes('Qualifier');
-  const isMajor = event.classification === 'Major' || (event.roundsCount && event.roundsCount >= 4);
+  const isMajor = event.classification === 'Major';
 
   // 1. Number of individual round scores tracked from 1 to 4 rounds
   const initialTrackedRounds = event.roundsCount 
@@ -79,11 +79,15 @@ export default function LiveLeaderboardModal({
     : ['gross', 'net', 'points'];
   const [scoreFormats, setScoreFormats] = useState<StandingsScoreFormat[]>(initialFormats);
 
-  // Sub-entry selection (Main vs Alternate) for non-qualifiers
-  const [entryType, setEntryType] = useState<'main' | 'alternate'>(defaultDivision || 'main');
+  // Sub-entry selection (Main vs Alternate vs Major) for non-qualifiers
+  const [entryType, setEntryType] = useState<'main' | 'alternate' | 'major'>(
+    isMajor ? 'major' : (defaultDivision || 'main')
+  );
   const targetEventId = isQualifier 
     ? event.id 
-    : (entryType === 'alternate' ? `${event.id}-alternate` : `${event.id}-main`);
+    : isMajor
+      ? `${event.id}-major`
+      : (entryType === 'alternate' ? `${event.id}-alternate` : `${event.id}-main`);
 
   // View vs Edit Mode
   const [mode, setMode] = useState<'view' | 'edit'>('view');
@@ -103,10 +107,12 @@ export default function LiveLeaderboardModal({
     if (event.scoreDisplayFormats && event.scoreDisplayFormats.length > 0) {
       setScoreFormats(event.scoreDisplayFormats);
     }
-    if (defaultDivision) {
+    if (isMajor) {
+      setEntryType('major');
+    } else if (defaultDivision) {
       setEntryType(defaultDivision);
     }
-  }, [event.id, event.roundsCount, event.scoreDisplayFormats, defaultDivision]);
+  }, [event.id, event.roundsCount, event.scoreDisplayFormats, defaultDivision, isMajor]);
 
   const coursePar = course?.par || 72;
 
@@ -128,8 +134,12 @@ export default function LiveLeaderboardModal({
   // Find existing results for this target event
   const currentResults = useMemo(() => {
     let res = results.filter(r => r.eventId === targetEventId);
-    if (res.length === 0 && (targetEventId.endsWith('-main') || isQualifier)) {
-      res = results.filter(r => r.eventId === event.id);
+    if (res.length === 0) {
+      if (isMajor) {
+        res = results.filter(r => r.eventId === event.id || r.eventId === `${event.id}-main`);
+      } else if (targetEventId.endsWith('-main') || isQualifier) {
+        res = results.filter(r => r.eventId === event.id);
+      }
     }
     return [...res].sort((a, b) => {
       if (a.position !== b.position && a.position > 0 && b.position > 0) {
@@ -745,7 +755,15 @@ export default function LiveLeaderboardModal({
         {/* Quick Format & Round Badges Ribbon */}
         <div className="bg-stone-950/95 px-5 sm:px-7 py-2.5 border-b border-stone-800 flex items-center justify-between gap-3 flex-wrap shrink-0 text-xs">
           <div className="flex items-center gap-3 flex-wrap font-mono">
-            {!isQualifier && (
+            {isMajor ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-stone-400 uppercase text-[10px]">Board:</span>
+                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/50 px-2.5 py-0.5 rounded text-xs font-bold uppercase font-mono flex items-center gap-1 shadow-xs">
+                  <Trophy className="w-3 h-3 text-amber-400" />
+                  <span>🏆 Major Board</span>
+                </span>
+              </div>
+            ) : !isQualifier ? (
               <div className="flex items-center gap-1.5">
                 <span className="text-stone-400 uppercase text-[10px]">Division:</span>
                 <button
@@ -771,7 +789,7 @@ export default function LiveLeaderboardModal({
                   ⛳ Alternate
                 </button>
               </div>
-            )}
+            ) : null}
 
             <div className="flex items-center gap-1.5">
               <span className="text-stone-400 uppercase text-[10px]">Rounds:</span>
