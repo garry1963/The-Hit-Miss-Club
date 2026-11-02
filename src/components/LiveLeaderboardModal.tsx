@@ -121,21 +121,39 @@ export default function LiveLeaderboardModal({
     rowOrResult?: { round1Score?: number; round2Score?: number; round3Score?: number; round4Score?: number }
   ) => {
     if (score === undefined || score === null) return 0;
-    if (score > 30 || score < -30) {
+    // Any score <= 0 is ALWAYS already relative to par (no stroke-play round or tournament total is <= 0)
+    if (score <= 0) return score;
+
+    // If rowOrResult has round scores, inspect whether they are already relative-to-par or raw strokes
+    if (rowOrResult) {
+      const enteredRounds = [
+        rowOrResult.round1Score,
+        trackedRounds >= 2 ? rowOrResult.round2Score : null,
+        trackedRounds >= 3 ? rowOrResult.round3Score : null,
+        trackedRounds >= 4 ? rowOrResult.round4Score : null
+      ].filter(v => v !== undefined && v !== null && Number(v) !== 0).map(v => Number(v));
+
+      if (enteredRounds.length > 0) {
+        // If any entered round score is under 50 (e.g. negative or small relative-to-par value like -11, +2, +5),
+        // the scores are already relative-to-par
+        const hasRelativeRounds = enteredRounds.some(r => r < 50);
+        if (hasRelativeRounds) {
+          return score;
+        }
+        // Otherwise, all entered rounds are raw stroke counts (e.g. 72, 70 >= 50)
+        return score - (coursePar * enteredRounds.length);
+      }
+    }
+
+    // Only stroke play totals (> 50) represent raw strokes to convert relative to par
+    if (score > 50) {
       let activeRounds = 1;
-      if (rowOrResult) {
-        const count = [
-          rowOrResult.round1Score,
-          trackedRounds >= 2 ? rowOrResult.round2Score : 0,
-          trackedRounds >= 3 ? rowOrResult.round3Score : 0,
-          trackedRounds >= 4 ? rowOrResult.round4Score : 0
-        ].filter(v => v !== undefined && v !== null && Number(v) !== 0).length;
-        if (count > 0) activeRounds = count;
-      } else if (trackedRounds > 1 && score > coursePar * 1.5) {
+      if (trackedRounds > 1 && score > coursePar * 1.5) {
         activeRounds = Math.min(Math.max(Math.round(score / coursePar), 1), trackedRounds);
       }
       return score - (coursePar * activeRounds);
     }
+
     return score;
   };
 
@@ -1062,7 +1080,7 @@ export default function LiveLeaderboardModal({
                                 if (row.grossScore === 0) return <span className="text-stone-500 font-normal">-</span>;
                                 const vsPar = getScoreVsPar(row.grossScore, row);
                                 const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
-                                if (row.grossScore > 30 || row.grossScore < -30) {
+                                if (row.grossScore > 50) {
                                   return (
                                     <span title={`Gross Total: ${row.grossScore} (${vsParStr})`}>
                                       <span className="text-sm font-extrabold text-indigo-200">{row.grossScore}</span>
@@ -1092,7 +1110,7 @@ export default function LiveLeaderboardModal({
                                 if (row.grossScore === 0 && row.netScore === 0) return <span className="text-stone-500 font-normal">-</span>;
                                 const vsPar = getScoreVsPar(row.netScore, row);
                                 const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
-                                if (row.netScore > 30 || row.netScore < -30) {
+                                if (row.netScore > 50) {
                                   return (
                                     <span title={`Net Total: ${row.netScore} (${vsParStr})`}>
                                       <span className="text-sm font-extrabold text-emerald-300">{row.netScore}</span>
@@ -1321,7 +1339,7 @@ export default function LiveLeaderboardModal({
                                   if (!r.grossScore && r.grossScore !== 0) return <span className="text-stone-500 font-normal">-</span>;
                                   const vsPar = getScoreVsPar(r.grossScore, r);
                                   const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
-                                  if (r.grossScore > 30 || r.grossScore < -30) {
+                                  if (r.grossScore > 50) {
                                     return (
                                       <span title={`Gross Total: ${r.grossScore} strokes (${vsParStr})`}>
                                         <span className="text-sm font-extrabold text-indigo-200">{vsParStr}</span>
@@ -1346,7 +1364,7 @@ export default function LiveLeaderboardModal({
                                   if (r.grossScore === 0 && r.netScore === 0) return <span className="text-stone-500 font-normal">-</span>;
                                   const vsPar = getScoreVsPar(r.netScore, r);
                                   const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
-                                  if (r.netScore > 30 || r.netScore < -30) {
+                                  if (r.netScore > 50) {
                                     return (
                                       <span title={`Net Total: ${r.netScore} strokes (${vsParStr})`}>
                                         <span className="text-sm font-extrabold text-emerald-300">{vsParStr}</span>

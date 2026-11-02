@@ -278,18 +278,34 @@ export default function HomeTab({
 
   const getScoreVsPar = (score: number, resItem?: TournamentResult) => {
     if (score === undefined || score === null) return 0;
-    if (score > 30 || score < -30) {
+    // Any score <= 0 is ALWAYS already relative to par
+    if (score <= 0) return score;
+
+    if (resItem) {
+      const trackedRounds = spotlightEvent?.roundsCount || 1;
+      const enteredRounds = [
+        resItem.round1Score,
+        trackedRounds >= 2 ? resItem.round2Score : null,
+        trackedRounds >= 3 ? resItem.round3Score : null,
+        trackedRounds >= 4 ? resItem.round4Score : null
+      ].filter(v => v !== undefined && v !== null && Number(v) !== 0).map(v => Number(v));
+
+      if (enteredRounds.length > 0) {
+        // If any entered round score is under 50 (e.g. negative or small relative-to-par value like -11, +2, +5),
+        // the scores are already relative-to-par
+        const hasRelativeRounds = enteredRounds.some(r => r < 50);
+        if (hasRelativeRounds) {
+          return score;
+        }
+        return score - (coursePar * enteredRounds.length);
+      }
+    }
+
+    // Only stroke play totals (> 50) represent raw strokes to convert relative to par
+    if (score > 50) {
       let activeRounds = 1;
       const trackedRounds = spotlightEvent?.roundsCount || 1;
-      if (resItem) {
-        const count = [
-          resItem.round1Score,
-          trackedRounds >= 2 ? resItem.round2Score : 0,
-          trackedRounds >= 3 ? resItem.round3Score : 0,
-          trackedRounds >= 4 ? resItem.round4Score : 0
-        ].filter(v => v !== undefined && v !== null && Number(v) !== 0).length;
-        if (count > 0) activeRounds = count;
-      } else if (trackedRounds > 1 && score > coursePar * 1.5) {
+      if (trackedRounds > 1 && score > coursePar * 1.5) {
         activeRounds = Math.min(Math.max(Math.round(score / coursePar), 1), trackedRounds);
       }
       return score - (coursePar * activeRounds);
