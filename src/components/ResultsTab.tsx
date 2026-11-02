@@ -87,8 +87,10 @@ export default function ResultsTab({
   });
 
   const formatGolfScore = (score: number) => {
-    if (score > 0) return `+${score}`;
-    if (score < 0) return `${score}`;
+    const coursePar = activeCourse?.par || 72;
+    const rel = score > 50 ? score - coursePar : score;
+    if (rel > 0) return `+${rel}`;
+    if (rel < 0) return `${rel}`;
     return 'E';
   };
 

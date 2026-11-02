@@ -45,10 +45,10 @@ interface LeaderboardDraftRow {
   netScore: number;
   points: number;
   position: number;
-  round1Score?: number;
-  round2Score?: number;
-  round3Score?: number;
-  round4Score?: number;
+  round1Score?: number | string;
+  round2Score?: number | string;
+  round3Score?: number | string;
+  round4Score?: number | string;
   thru?: string;
 }
 
@@ -116,9 +116,58 @@ export default function LiveLeaderboardModal({
 
   const coursePar = course?.par || 72;
 
+  const parseRoundScore = (val: any): number => {
+    if (val === undefined || val === null || val === '' || val === '-' || val === '+') return 0;
+    if (typeof val === 'string') {
+      const s = val.trim().toUpperCase();
+      if (s === 'E' || s === 'EVEN') return 0;
+      const n = Number(s);
+      return isNaN(n) ? 0 : n;
+    }
+    return Number(val) || 0;
+  };
+
+  const formatDraftRoundScore = (score: number | string | undefined | null): string => {
+    if (score === undefined || score === null || score === '') return '';
+    if (typeof score === 'string') {
+      const trimmed = score.trim().toUpperCase();
+      if (trimmed === 'E' || trimmed === 'EVEN') return 'E';
+      if (trimmed === '-' || trimmed === '+') return trimmed;
+      const n = Number(trimmed);
+      if (!isNaN(n)) {
+        if (n === 0) return 'E';
+        if (n > 0) return `+${n}`;
+        return `${n}`;
+      }
+      return trimmed;
+    }
+    if (score === 0) return 'E';
+    if (score > 0) return `+${score}`;
+    return `${score}`;
+  };
+
+  const formatRoundScore = (score: number | string | undefined | null): string => {
+    if (score === undefined || score === null || score === '') return '-';
+    if (typeof score === 'string') {
+      const trimmed = score.trim().toUpperCase();
+      if (trimmed === 'E' || trimmed === 'EVEN') return 'E';
+      if (trimmed === '-' || trimmed === '+') return '-';
+    }
+    const num = Number(score);
+    if (isNaN(num)) return '-';
+
+    let relScore = num;
+    if (num > 50) {
+      relScore = num - coursePar;
+    }
+    if (relScore > 0) return `+${relScore}`;
+    if (relScore < 0) return `${relScore}`;
+    return 'E';
+  };
+
   const getScoreVsPar = (
     score: number,
-    rowOrResult?: { round1Score?: number; round2Score?: number; round3Score?: number; round4Score?: number }
+    rowOrResult?: { round1Score?: number | string; round2Score?: number | string; round3Score?: number | string; round4Score?: number | string }
   ) => {
     if (score === undefined || score === null) return 0;
     // Any score <= 0 is ALWAYS already relative to par (no stroke-play round or tournament total is <= 0)
@@ -126,12 +175,23 @@ export default function LiveLeaderboardModal({
 
     // If rowOrResult has round scores, inspect whether they are already relative-to-par or raw strokes
     if (rowOrResult) {
+      const parseVal = (v: any) => {
+        if (v === undefined || v === null || v === '' || v === '-' || v === '+') return null;
+        if (typeof v === 'string') {
+          const s = v.trim().toUpperCase();
+          if (s === 'E' || s === 'EVEN') return 0;
+          const n = Number(s);
+          return isNaN(n) ? null : n;
+        }
+        return Number(v);
+      };
+
       const enteredRounds = [
-        rowOrResult.round1Score,
-        trackedRounds >= 2 ? rowOrResult.round2Score : null,
-        trackedRounds >= 3 ? rowOrResult.round3Score : null,
-        trackedRounds >= 4 ? rowOrResult.round4Score : null
-      ].filter(v => v !== undefined && v !== null && Number(v) !== 0).map(v => Number(v));
+        parseVal(rowOrResult.round1Score),
+        trackedRounds >= 2 ? parseVal(rowOrResult.round2Score) : null,
+        trackedRounds >= 3 ? parseVal(rowOrResult.round3Score) : null,
+        trackedRounds >= 4 ? parseVal(rowOrResult.round4Score) : null
+      ].filter((v): v is number => v !== null && v !== 0);
 
       if (enteredRounds.length > 0) {
         // If any entered round score is under 50 (e.g. negative or small relative-to-par value like -11, +2, +5),
@@ -159,7 +219,7 @@ export default function LiveLeaderboardModal({
 
   const formatScoreVsPar = (
     score: number,
-    rowOrResult?: { round1Score?: number; round2Score?: number; round3Score?: number; round4Score?: number }
+    rowOrResult?: { round1Score?: number | string; round2Score?: number | string; round3Score?: number | string; round4Score?: number | string }
   ) => {
     const vsPar = getScoreVsPar(score, rowOrResult);
     if (vsPar > 0) return `+${vsPar}`;
@@ -211,10 +271,10 @@ export default function LiveLeaderboardModal({
     if (currentResults.length > 0) {
       setDraftRows(currentResults.map(r => {
         const mem = members.find(m => m.id === r.playerId);
-        const r1 = Number(r.round1Score) || 0;
-        const r2 = trackedRounds >= 2 ? (Number(r.round2Score) || 0) : 0;
-        const r3 = trackedRounds >= 3 ? (Number(r.round3Score) || 0) : 0;
-        const r4 = trackedRounds >= 4 ? (Number(r.round4Score) || 0) : 0;
+        const r1 = parseRoundScore(r.round1Score);
+        const r2 = trackedRounds >= 2 ? parseRoundScore(r.round2Score) : 0;
+        const r3 = trackedRounds >= 3 ? parseRoundScore(r.round3Score) : 0;
+        const r4 = trackedRounds >= 4 ? parseRoundScore(r.round4Score) : 0;
         const sumRounds = r1 + r2 + r3 + r4;
         const hcp = r.handicap !== undefined ? Number(r.handicap) : (mem ? Number(mem.handicap) : 18);
         const gross = (sumRounds !== 0) ? sumRounds : (Number(r.grossScore) || 0);
@@ -227,10 +287,10 @@ export default function LiveLeaderboardModal({
           netScore: net,
           points: r.points || 0,
           position: r.position || 1,
-          round1Score: r.round1Score || 0,
-          round2Score: r.round2Score || 0,
-          round3Score: r.round3Score || 0,
-          round4Score: r.round4Score || 0,
+          round1Score: formatDraftRoundScore(r.round1Score),
+          round2Score: trackedRounds >= 2 ? formatDraftRoundScore(r.round2Score) : '',
+          round3Score: trackedRounds >= 3 ? formatDraftRoundScore(r.round3Score) : '',
+          round4Score: trackedRounds >= 4 ? formatDraftRoundScore(r.round4Score) : '',
           thru: r.thru || 'F'
         };
       }));
@@ -292,10 +352,10 @@ export default function LiveLeaderboardModal({
       netScore: 0,
       points: 0,
       position: draftRows.length + 1,
-      round1Score: 0,
-      round2Score: 0,
-      round3Score: 0,
-      round4Score: 0,
+      round1Score: 'E',
+      round2Score: trackedRounds >= 2 ? 'E' : '',
+      round3Score: trackedRounds >= 3 ? 'E' : '',
+      round4Score: trackedRounds >= 4 ? 'E' : '',
       thru: '1'
     };
 
@@ -319,10 +379,10 @@ export default function LiveLeaderboardModal({
       netScore: 0,
       points: 0,
       position: startPos + idx,
-      round1Score: 0,
-      round2Score: 0,
-      round3Score: 0,
-      round4Score: 0,
+      round1Score: 'E',
+      round2Score: trackedRounds >= 2 ? 'E' : '',
+      round3Score: trackedRounds >= 3 ? 'E' : '',
+      round4Score: trackedRounds >= 4 ? 'E' : '',
       thru: '1'
     }));
 
@@ -350,15 +410,17 @@ export default function LiveLeaderboardModal({
         }
       } else if (field === 'thru') {
         target.thru = String(value);
+      } else if (field === 'round1Score' || field === 'round2Score' || field === 'round3Score' || field === 'round4Score') {
+        target[field] = value;
       } else {
         (target as any)[field] = Number(value);
       }
 
       // Recalculate Gross Score as the exact total of the entered round scores across active tracked rounds
-      const r1 = Number(target.round1Score) || 0;
-      const r2 = trackedRounds >= 2 ? (Number(target.round2Score) || 0) : 0;
-      const r3 = trackedRounds >= 3 ? (Number(target.round3Score) || 0) : 0;
-      const r4 = trackedRounds >= 4 ? (Number(target.round4Score) || 0) : 0;
+      const r1 = parseRoundScore(target.round1Score);
+      const r2 = trackedRounds >= 2 ? parseRoundScore(target.round2Score) : 0;
+      const r3 = trackedRounds >= 3 ? parseRoundScore(target.round3Score) : 0;
+      const r4 = trackedRounds >= 4 ? parseRoundScore(target.round4Score) : 0;
 
       // Exact sum of the entered round scores
       const totalOfEnteredRounds = r1 + r2 + r3 + r4;
@@ -366,10 +428,40 @@ export default function LiveLeaderboardModal({
 
       // Auto-calculate Net Score: gross - handicap adjustment
       // If no round scores entered at all, net score is 0
-      if (r1 !== 0 || r2 !== 0 || r3 !== 0 || r4 !== 0) {
+      const hasAnyRoundEntered = [target.round1Score, target.round2Score, target.round3Score, target.round4Score].some(s => s !== undefined && s !== null && s !== '');
+      if (hasAnyRoundEntered) {
         target.netScore = target.grossScore - Number(target.handicap || 0);
       } else {
         target.netScore = 0;
+      }
+
+      copy[index] = target;
+      return copy;
+    });
+  };
+
+  const handleRoundBlur = (
+    index: number,
+    field: 'round1Score' | 'round2Score' | 'round3Score' | 'round4Score'
+  ) => {
+    setDraftRows(prev => {
+      const copy = [...prev];
+      const target = { ...copy[index] };
+      const rawVal = target[field];
+
+      if (rawVal === undefined || rawVal === null || rawVal === '' || rawVal === '-' || rawVal === '+') {
+        target[field] = '';
+      } else if (typeof rawVal === 'string' && (rawVal.trim().toUpperCase() === 'E' || rawVal.trim().toUpperCase() === 'EVEN' || rawVal.trim() === '0')) {
+        target[field] = 'E';
+      } else {
+        const num = Number(rawVal);
+        if (isNaN(num) || num === 0) {
+          target[field] = 'E';
+        } else if (num > 0) {
+          target[field] = `+${num}`;
+        } else {
+          target[field] = `${num}`;
+        }
       }
 
       copy[index] = target;
@@ -452,12 +544,12 @@ export default function LiveLeaderboardModal({
           netScore: Number(r.netScore) || 0,
           points: Number(r.points) || 0,
           position: Number(r.position) || 1,
-          round1Score: Number(r.round1Score) || 0,
+          round1Score: parseRoundScore(r.round1Score),
           thru: r.thru || 'F'
         };
-        if (trackedRounds >= 2) item.round2Score = Number(r.round2Score) || 0;
-        if (trackedRounds >= 3) item.round3Score = Number(r.round3Score) || 0;
-        if (trackedRounds >= 4) item.round4Score = Number(r.round4Score) || 0;
+        if (trackedRounds >= 2) item.round2Score = parseRoundScore(r.round2Score);
+        if (trackedRounds >= 3) item.round3Score = parseRoundScore(r.round3Score);
+        if (trackedRounds >= 4) item.round4Score = parseRoundScore(r.round4Score);
         return item;
       });
 
@@ -507,10 +599,10 @@ export default function LiveLeaderboardModal({
         r.handicap ?? mem?.handicap ?? '',
         r.thru || 'F'
       ];
-      if (trackedRounds >= 1) rowArr.push(r.round1Score || 0);
-      if (trackedRounds >= 2) rowArr.push(r.round2Score || 0);
-      if (trackedRounds >= 3) rowArr.push(r.round3Score || 0);
-      if (trackedRounds >= 4) rowArr.push(r.round4Score || 0);
+      if (trackedRounds >= 1) rowArr.push(formatRoundScore(r.round1Score));
+      if (trackedRounds >= 2) rowArr.push(formatRoundScore(r.round2Score));
+      if (trackedRounds >= 3) rowArr.push(formatRoundScore(r.round3Score));
+      if (trackedRounds >= 4) rowArr.push(formatRoundScore(r.round4Score));
       if (scoreFormats.includes('gross')) rowArr.push(r.grossScore || 0);
       if (scoreFormats.includes('net')) rowArr.push(r.netScore || 0);
       if (scoreFormats.includes('points')) rowArr.push(r.points || 0);
@@ -1030,10 +1122,12 @@ export default function LiveLeaderboardModal({
                           {/* Round 1 */}
                           <td className="p-2 text-center">
                             <input
-                              type="number"
-                              value={row.round1Score ?? 0}
+                              type="text"
+                              value={row.round1Score ?? ''}
                               onChange={e => handleFieldChange(idx, 'round1Score', e.target.value)}
-                              className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500"
+                              onBlur={() => handleRoundBlur(idx, 'round1Score')}
+                              placeholder="E"
+                              className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500 font-bold text-xs"
                             />
                           </td>
 
@@ -1041,10 +1135,12 @@ export default function LiveLeaderboardModal({
                           {trackedRounds >= 2 && (
                             <td className="p-2 text-center">
                               <input
-                                type="number"
-                                value={row.round2Score ?? 0}
+                                type="text"
+                                value={row.round2Score ?? ''}
                                 onChange={e => handleFieldChange(idx, 'round2Score', e.target.value)}
-                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500"
+                                onBlur={() => handleRoundBlur(idx, 'round2Score')}
+                                placeholder="E"
+                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500 font-bold text-xs"
                               />
                             </td>
                           )}
@@ -1053,10 +1149,12 @@ export default function LiveLeaderboardModal({
                           {trackedRounds >= 3 && (
                             <td className="p-2 text-center">
                               <input
-                                type="number"
-                                value={row.round3Score ?? 0}
+                                type="text"
+                                value={row.round3Score ?? ''}
                                 onChange={e => handleFieldChange(idx, 'round3Score', e.target.value)}
-                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500"
+                                onBlur={() => handleRoundBlur(idx, 'round3Score')}
+                                placeholder="E"
+                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500 font-bold text-xs"
                               />
                             </td>
                           )}
@@ -1065,10 +1163,12 @@ export default function LiveLeaderboardModal({
                           {trackedRounds >= 4 && (
                             <td className="p-2 text-center">
                               <input
-                                type="number"
-                                value={row.round4Score ?? 0}
+                                type="text"
+                                value={row.round4Score ?? ''}
                                 onChange={e => handleFieldChange(idx, 'round4Score', e.target.value)}
-                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500"
+                                onBlur={() => handleRoundBlur(idx, 'round4Score')}
+                                placeholder="E"
+                                className="w-16 bg-stone-900 border border-stone-750 text-stone-100 font-mono text-center py-1 rounded focus:outline-none focus:border-emerald-500 font-bold text-xs"
                               />
                             </td>
                           )}
@@ -1077,7 +1177,8 @@ export default function LiveLeaderboardModal({
                           {scoreFormats.includes('gross') && (
                             <td className="p-2 text-center font-mono font-bold text-indigo-300">
                               {(() => {
-                                if (row.grossScore === 0) return <span className="text-stone-500 font-normal">-</span>;
+                                const hasAnyRound = [row.round1Score, row.round2Score, row.round3Score, row.round4Score].some(s => s !== undefined && s !== null && s !== '');
+                                if (row.grossScore === 0 && !hasAnyRound) return <span className="text-stone-500 font-normal">-</span>;
                                 const vsPar = getScoreVsPar(row.grossScore, row);
                                 const vsParStr = vsPar > 0 ? `+${vsPar}` : vsPar < 0 ? `${vsPar}` : 'E';
                                 if (row.grossScore > 50) {
@@ -1307,28 +1408,28 @@ export default function LiveLeaderboardModal({
                             </td>
 
                             {/* Round 1 */}
-                            <td className="p-3 text-center font-mono text-stone-300">
-                              {r.round1Score || '-'}
+                            <td className="p-3 text-center font-mono font-medium text-stone-200">
+                              {formatRoundScore(r.round1Score)}
                             </td>
 
                             {/* Round 2 */}
                             {trackedRounds >= 2 && (
-                              <td className="p-3 text-center font-mono text-stone-300">
-                                {r.round2Score || '-'}
+                              <td className="p-3 text-center font-mono font-medium text-stone-200">
+                                {formatRoundScore(r.round2Score)}
                               </td>
                             )}
 
                             {/* Round 3 */}
                             {trackedRounds >= 3 && (
-                              <td className="p-3 text-center font-mono text-stone-300">
-                                {r.round3Score || '-'}
+                              <td className="p-3 text-center font-mono font-medium text-stone-200">
+                                {formatRoundScore(r.round3Score)}
                               </td>
                             )}
 
                             {/* Round 4 */}
                             {trackedRounds >= 4 && (
-                              <td className="p-3 text-center font-mono text-stone-300">
-                                {r.round4Score || '-'}
+                              <td className="p-3 text-center font-mono font-medium text-stone-200">
+                                {formatRoundScore(r.round4Score)}
                               </td>
                             )}
 
