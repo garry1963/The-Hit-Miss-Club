@@ -8,6 +8,7 @@ export const DEFAULT_SITE_CONTENT: Record<string, string> = {
   home_welcome_title: "⛳ Welcome to the Society",
   home_hero_title: "The Hit & Miss Club",
   home_hero_subtitle: "Serving our community of amateur golfers since 2026. Designed to organize, compile scores, and review handicaps fairly, because we might hit it but we usually miss it.",
+  home_hero_bg_image: "/src/assets/images/golf_course_hero_1780920330072.png",
   home_fixture_card_title: "★ Spotlight Fixture",
   spotlight_event_id: "auto",
   home_cta_title: "Interested in Joining the Society?",

@@ -745,12 +745,17 @@ export default function HomeTab({
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0 select-none">
           <img 
-            src="/src/assets/images/golf_course_hero_1780920330072.png" 
+            key={siteContent?.home_hero_bg_image || 'default-hero-bg'}
+            src={siteContent?.home_hero_bg_image?.trim() || "/src/assets/images/golf_course_hero_1780920330072.png"} 
             alt="Scenic Golf Fairway" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://picsum.photos/seed/golfhero/1920/1080?blur=1";
+              const img = e.currentTarget;
+              if (!img.dataset.fallbackApplied) {
+                img.dataset.fallbackApplied = 'true';
+                img.src = "https://picsum.photos/seed/golfhero/1920/1080?blur=1";
+              }
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/60 to-[#064e3b]/50" />

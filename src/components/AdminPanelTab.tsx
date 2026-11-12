@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff, Facebook, MessageSquare, Youtube, Mail, Phone, MapPin, Users, Globe, Activity, BarChart3, TrendingUp, Smartphone, Monitor, CheckCircle2, Clock } from 'lucide-react';
+import { Database, Plus, Trash2, Edit, RefreshCw, Upload, Download, Save, Newspaper, ArrowUpRight, Scale, CalendarCheck, Key, Lock, Eye, EyeOff, Facebook, MessageSquare, Youtube, Mail, Phone, MapPin, Users, Globe, Activity, BarChart3, TrendingUp, Smartphone, Monitor, CheckCircle2, Clock, Image as ImageIcon, RotateCcw, AlertCircle } from 'lucide-react';
 import { NewsArticle, Member, Event, TournamentResult, GalleryImage, Season, VisitorStats } from '../types';
 import { formatAppDate } from '../utils/dateUtils';
+import { DEFAULT_SITE_CONTENT } from '../defaultContent';
 
 interface AdminPanelTabProps {
   news: NewsArticle[];
@@ -82,6 +83,11 @@ export default function AdminPanelTab({
   const [draftDiscord, setDraftDiscord] = useState('');
   const [draftYoutube, setDraftYoutube] = useState('');
 
+  // Draft welcome hero background image URL
+  const [draftHeroBgImage, setDraftHeroBgImage] = useState('');
+  const [heroBgPreviewError, setHeroBgPreviewError] = useState(false);
+  const [heroBgNotice, setHeroBgNotice] = useState<string | null>(null);
+
   // Draft committee officer additions
   const [newOfficerId, setNewOfficerId] = useState('');
   const [newOfficerTitle, setNewOfficerTitle] = useState('');
@@ -146,6 +152,8 @@ export default function AdminPanelTab({
       setDraftFacebook(siteContent.social_facebook || 'https://facebook.com/golf');
       setDraftDiscord(siteContent.social_discord || 'https://discord.gg/golf');
       setDraftYoutube(siteContent.social_youtube || 'https://youtube.com/golf');
+      setDraftHeroBgImage(siteContent.home_hero_bg_image || DEFAULT_SITE_CONTENT.home_hero_bg_image);
+      setHeroBgPreviewError(false);
     }
   }, [siteContent]);
 
@@ -165,6 +173,37 @@ export default function AdminPanelTab({
     updateSiteContent('social_discord', draftDiscord);
     updateSiteContent('social_youtube', draftYoutube);
     alert('Social media/follow platform details updated successfully!');
+  };
+
+  // Handle Welcome Background Image Save & Reset
+  const handleSaveHeroBgImage = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = draftHeroBgImage.trim();
+    if (!cleaned) {
+      setHeroBgNotice('Please enter a valid direct image link or click Reset to Default.');
+      return;
+    }
+    const isValidFormat =
+      cleaned.startsWith('https://') ||
+      cleaned.startsWith('http://') ||
+      cleaned.startsWith('/') ||
+      cleaned.startsWith('data:image/');
+    if (!isValidFormat) {
+      setHeroBgNotice('Image URL must start with https://, http://, or /');
+      return;
+    }
+    updateSiteContent('home_hero_bg_image', cleaned);
+    setHeroBgNotice('Welcome to the Society background image updated successfully!');
+    setTimeout(() => setHeroBgNotice(null), 4000);
+  };
+
+  const handleResetHeroBgImage = () => {
+    const defaultImg = DEFAULT_SITE_CONTENT.home_hero_bg_image;
+    setDraftHeroBgImage(defaultImg);
+    setHeroBgPreviewError(false);
+    updateSiteContent('home_hero_bg_image', defaultImg);
+    setHeroBgNotice('Restored default Welcome to the Society background image.');
+    setTimeout(() => setHeroBgNotice(null), 4000);
   };
 
   // Handle Promote standard member to committee officer
@@ -1124,8 +1163,111 @@ export default function AdminPanelTab({
             <span>Society Profile, Contacts & Committee Board</span>
           </h2>
           <p className="text-stone-500 text-xs mt-1">
-            Configure contact details, social media platforms, caddie hotlines, and c-suite committee profiles universally displayed across the platform.
+            Configure the Welcome banner image, contact details, social media platforms, caddie hotlines, and committee profiles universally displayed across the platform.
           </p>
+        </div>
+
+        {/* Welcome to the Society Background Image Card */}
+        <div className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6 shadow-sm text-left">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3 mb-5">
+            <div>
+              <h3 className="font-display font-bold text-sm text-stone-900 uppercase flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-emerald-800" />
+                <span>Welcome to the Society — Background Image</span>
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Paste a direct image link (JPG, PNG, or WebP URL) to replace the background photo on the homepage hero banner.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <form onSubmit={handleSaveHeroBgImage} className="lg:col-span-7 space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="welcome-bg-image-url" className="text-xs font-semibold text-stone-700">
+                  Direct Image URL *
+                </label>
+                <input
+                  id="welcome-bg-image-url"
+                  type="text"
+                  value={draftHeroBgImage}
+                  onChange={e => {
+                    setDraftHeroBgImage(e.target.value);
+                    setHeroBgPreviewError(false);
+                    setHeroBgNotice(null);
+                  }}
+                  placeholder="https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=1920"
+                  className="bg-white border border-stone-250 rounded-xl px-3.5 py-2.5 text-xs font-mono text-stone-900 focus:outline-none focus:border-emerald-800"
+                />
+                <span className="text-[11px] text-stone-400">
+                  Recommended: landscape widescreen photo (e.g. 1920×1080 or 16:9).
+                </span>
+              </div>
+
+              {heroBgNotice && (
+                <div className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 border ${
+                  heroBgNotice.includes('must start') || heroBgNotice.includes('Please enter')
+                    ? 'bg-red-50 border-red-200 text-red-800'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                }`}>
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{heroBgNotice}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  className="bg-[#064e3b] hover:bg-emerald-900 text-white font-bold uppercase tracking-wider text-[11px] py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Background Image</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetHeroBgImage}
+                  className="bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-250 font-bold uppercase tracking-wider text-[11px] py-2.5 px-4 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset to Default</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Live Hero Preview */}
+            <div className="lg:col-span-5 space-y-1.5">
+              <span className="text-[11px] font-semibold text-stone-600 block">Live Banner Preview</span>
+              <div className="relative h-44 rounded-xl overflow-hidden border border-stone-200 bg-stone-900 shadow-inner">
+                {!heroBgPreviewError && draftHeroBgImage.trim() ? (
+                  <img
+                    src={draftHeroBgImage.trim()}
+                    alt="Welcome banner preview"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={() => setHeroBgPreviewError(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4 text-center gap-1.5">
+                    <AlertCircle className="w-5 h-5 text-amber-400" />
+                    <span className="text-[11px] font-medium text-stone-300">
+                      {draftHeroBgImage.trim()
+                        ? 'Unable to preview this image URL. Check that the link points directly to an image.'
+                        : 'No image URL entered.'}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/55 to-[#064e3b]/45 pointer-events-none" />
+                <div className="absolute bottom-3 left-3.5 right-3.5 pointer-events-none">
+                  <span className="inline-block bg-[#fbbf24] text-emerald-950 font-mono text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full mb-1">
+                    {siteContent?.home_welcome_title || '⛳ Welcome to the Society'}
+                  </span>
+                  <div className="font-display font-bold text-sm text-white uppercase tracking-tight truncate">
+                    {siteContent?.home_hero_title || 'The Hit & Miss Club'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
