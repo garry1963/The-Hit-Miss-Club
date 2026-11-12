@@ -3,15 +3,17 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Plus, Search, Mail, Edit, Trash2, Trophy, Download, Upload, ShieldAlert, CheckCircle, XCircle, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
-import { Member, TournamentResult, Event, Season, Division } from '../types';
+import { Member, TournamentResult, Event, Season, Division, GolfCourse } from '../types';
 import { formatAppDate, getBaseEventId } from '../utils/dateUtils';
+import MemberPerformanceChart from './MemberPerformanceChart';
 
 interface MembersTabProps {
   members: Member[];
   results: TournamentResult[];
   events: Event[];
+  courses?: GolfCourse[];
   seasons: Season[];
   divisions: Division[];
   activeSeasonId: string;
@@ -26,6 +28,7 @@ export default function MembersTab({
   members,
   results,
   events,
+  courses = [],
   seasons,
   divisions,
   activeSeasonId,
@@ -37,6 +40,7 @@ export default function MembersTab({
 }: MembersTabProps) {
   // Local UI states
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [trendMemberId, setTrendMemberId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [divisionFilter, setDivisionFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
@@ -331,6 +335,32 @@ export default function MembersTab({
   const activeProfile = members.find(m => m.id === selectedMemberId);
   const activeProfileStats = activeProfile ? getMemberStats(activeProfile.id) : null;
 
+  // Keep trendMemberId initialized to a member with active season results (or first member)
+  const defaultTrendMemberId = useMemo(() => {
+    const seasonEvtIds = new Set(
+      events.filter(e => e.seasonId === activeSeasonId).map(e => e.id)
+    );
+    const withResults = members.find(m =>
+      results.some(r => r.playerId === m.id && seasonEvtIds.has(getBaseEventId(r.eventId)))
+    );
+    return withResults?.id || members[0]?.id || '';
+  }, [members, results, events, activeSeasonId]);
+
+  useEffect(() => {
+    if (selectedMemberId) {
+      setTrendMemberId(selectedMemberId);
+    }
+  }, [selectedMemberId]);
+
+  const effectiveTrendMember = useMemo(() => {
+    return (
+      members.find(m => m.id === trendMemberId) ||
+      members.find(m => m.id === defaultTrendMemberId) ||
+      members[0] ||
+      null
+    );
+  }, [members, trendMemberId, defaultTrendMemberId]);
+
   return (
     <div className="space-y-8 pb-12 animate-fadeIn text-left">
       
@@ -624,6 +654,21 @@ export default function MembersTab({
         </div>
 
       </div>
+
+      {/* 3b. Visual Performance Trends Chart */}
+      <MemberPerformanceChart
+        members={members}
+        selectedMember={effectiveTrendMember}
+        onSelectMember={(memberId) => {
+          setTrendMemberId(memberId);
+          if (selectedMemberId) setSelectedMemberId(memberId);
+        }}
+        results={results}
+        events={events}
+        courses={courses}
+        seasons={seasons}
+        activeSeasonId={activeSeasonId}
+      />
 
       {/* 4. Elegant Members Spreadsheet Ledger (HTML Table) */}
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">

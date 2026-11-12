@@ -125,6 +125,7 @@ export default function App() {
             members={state.members}
             results={state.results}
             events={state.events}
+            courses={state.courses}
             seasons={state.seasons}
             divisions={state.divisions}
             activeSeasonId={state.activeSeasonId}
